@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import styles from './styles.module.css';
 
 interface Achievement {
@@ -16,7 +16,6 @@ interface Achievement {
 }
 
 const AchievementViewPage: React.FC = () => {
-  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('view-link');
   const [searchFilters, setSearchFilters] = useState({

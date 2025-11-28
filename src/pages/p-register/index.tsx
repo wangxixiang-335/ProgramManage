@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthService } from '../../lib/authService';
 import styles from './styles.module.css';
 
 interface FormData {
@@ -167,11 +168,23 @@ const RegisterPage: React.FC = () => {
     setIsRegistering(true);
 
     try {
-      // 模拟注册请求
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // 调用注册服务
+      const result = await AuthService.register({
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        role: AuthService.getRoleId(currentPort)
+      });
+
+      if (result.success) {
+        // 注册成功，显示成功消息并跳转到登录页
+        alert('注册成功！请登录您的账号');
+        navigate('/login');
+      } else {
+        // 注册失败，显示错误消息
+        showRegisterErrorMessage(result.message);
+      }
       
-      // 注册成功后跳转到登录页
-      navigate('/login');
     } catch (error) {
       showRegisterErrorMessage('注册失败，请稍后再试');
     } finally {

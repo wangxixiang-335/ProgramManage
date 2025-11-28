@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthService } from '../../lib/authService';
 import styles from './styles.module.css';
 
 type RoleType = 'student' | 'teacher' | 'admin';
@@ -123,7 +124,7 @@ const LoginPage: React.FC = () => {
   };
 
   // 处理表单提交
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // 清除之前的错误
@@ -152,17 +153,34 @@ const LoginPage: React.FC = () => {
     // 设置加载状态
     setIsLoading(true);
     
-    // 模拟登录请求
-    setTimeout(() => {
-      // 根据当前选中的角色跳转到对应的首页
-      if (currentRole === 'teacher') {
-        navigate('/teacher-home');
-      } else if (currentRole === 'admin') {
-        navigate('/admin-home');
+    try {
+      // 调用登录服务
+      const result = await AuthService.login({
+        email: formData.email.trim(),
+        password: formData.password
+      });
+
+      if (result.success && result.user) {
+        // 检查用户角色是否与当前选择的角色匹配
+        const expectedRoleId = AuthService.getRoleId(currentRole);
+        if (result.user.role !== expectedRoleId) {
+          showLoginError(`该账号是${AuthService.getRoleName(result.user.role) === 'student' ? '学生端' : AuthService.getRoleName(result.user.role) === 'teacher' ? '教师端' : '管理员端'}账号，请选择正确的角色登录`);
+          return;
+        }
+
+        // 登录成功，跳转到对应的首页
+        const homeRoute = AuthService.getRoleHomeRoute(result.user.role);
+        navigate(homeRoute);
       } else {
-        navigate('/home');
+        // 登录失败，显示错误消息
+        showLoginError(result.message);
       }
-    }, 1500);
+      
+    } catch (error) {
+      showLoginError('登录失败，请稍后再试');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 处理角色切换

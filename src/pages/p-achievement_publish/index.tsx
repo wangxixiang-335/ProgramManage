@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AchievementService } from '../../lib/achievementService';
+import { RichTextEditor } from '../../lib/richTextEditor';
+import { ACHIEVEMENT_TYPES, AchievementType, User } from '../../types/achievement';
 import styles from './styles.module.css';
 
 interface FileUpload {
@@ -18,10 +21,77 @@ interface FormData {
   content: string;
   demoVideo: File | null;
   attachments: FileUpload[];
+  typeId: string; // 新增：成果类型ID
+  instructorId: string; // 新增：指导老师ID
+  parentsId: string; // 新增：父级成果ID（其他学生）
 }
+
+// 新增接口定义
+interface UserSelectModalProps {
+  isOpen: boolean;
+  users: User[];
+  title: string;
+  selectedUserId: string;
+  onSelect: (userId: string) => void;
+  onClose: () => void;
+}
+
+// 用户选择模态框组件
+const UserSelectModal: React.FC<UserSelectModalProps> = ({
+  isOpen,
+  users,
+  title,
+  selectedUserId,
+  onSelect,
+  onClose
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[60vh] overflow-y-auto">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">{title}</h3>
+        <div className="space-y-2 mb-6">
+          {users.map(user => (
+            <div key={user.id} className="flex items-center">
+              <input 
+                type="radio" 
+                id={user.id}
+                name="user-select"
+                checked={selectedUserId === user.id}
+                onChange={() => onSelect(user.id)}
+                className="w-4 h-4 text-secondary focus:ring-secondary border-border-light rounded"
+              />
+              <label htmlFor={user.id} className="ml-2 text-text-primary flex-1">
+                {user.username} ({user.email})
+              </label>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end space-x-4">
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 border border-border-light rounded-lg text-text-secondary hover:bg-bg-gray transition-all"
+          >
+            取消
+          </button>
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-all"
+          >
+            确认选择
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AchievementPublishPage: React.FC = () => {
   const navigate = useNavigate();
+  
+  // 假设当前用户ID（实际应该从登录状态或localStorage获取）
+  const currentUserId = '72ee2ee4-b41a-4389-a6a0-e2b59fb5980b'; // 测试学生账号ID
   
   // 页面状态
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,6 +99,49 @@ const AchievementPublishPage: React.FC = () => {
   const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
   const [showSelectApproverModal, setShowSelectApproverModal] = useState(false);
   const [selectedApprovers, setSelectedApprovers] = useState<string[]>([]);
+  
+  // 数据状态
+  const [isLoading, setIsLoading] = useState(false);
+  const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>(ACHIEVEMENT_TYPES);
+  const [instructors, setInstructors] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  
+  // 用户选择模态框状态
+  const [showInstructorModal, setShowInstructorModal] = useState(false);
+  const [showStudentModal, setShowStudentModal] = useState(false);
+  
+  // 加载数据
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+  
+  const loadInitialData = async () => {
+    setIsLoading(true);
+    
+    try {
+      // 加载成果类型
+      const typesResult = await AchievementService.getAchievementTypes();
+      if (typesResult.success && typesResult.data) {
+        setAchievementTypes(typesResult.data);
+      }
+      
+      // 加载教师列表（role=2）
+      const instructorsResult = await AchievementService.getUsersByRole(2);
+      if (instructorsResult.success && instructorsResult.data) {
+        setInstructors(instructorsResult.data);
+      }
+      
+      // 加载其他学生列表（role=1，排除当前用户）
+      const studentsResult = await AchievementService.getStudentsExceptCurrent(currentUserId);
+      if (studentsResult.success && studentsResult.data) {
+        setStudents(studentsResult.data);
+      }
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // 表单数据
   const [formData, setFormData] = useState<FormData>({
@@ -39,7 +152,10 @@ const AchievementPublishPage: React.FC = () => {
     instructors: ['张教授'],
     content: '',
     demoVideo: null,
-    attachments: []
+    attachments: [],
+    typeId: '',
+    instructorId: '',
+    parentsId: ''
   });
   
   // 文件输入引用
@@ -72,6 +188,36 @@ const AchievementPublishPage: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       [field]: value
+    }));
+  };
+  
+  // 成果类型变更
+  const handleTypeChange = (typeId: string) => {
+    const selectedType = achievementTypes.find(t => t.id === typeId);
+    const typeName = selectedType ? selectedType.name : '';
+    
+    setFormData(prev => ({
+      ...prev,
+      typeId,
+      type: typeName
+    }));
+  };
+  
+  // 指导老师选择
+  const handleInstructorSelect = (instructorId: string) => {
+    const instructor = instructors.find(u => u.id === instructorId);
+    setFormData(prev => ({
+      ...prev,
+      instructorId,
+      instructors: instructor ? [instructor.username] : ['']
+    }));
+  };
+  
+  // 其他学生选择
+  const handleStudentSelect = (studentId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      parentsId: studentId
     }));
   };
   
@@ -109,6 +255,48 @@ const AchievementPublishPage: React.FC = () => {
   const handleContentChange = (e: React.FormEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
     setFormData(prev => ({ ...prev, content: target.innerHTML }));
+  };
+  
+  // 富文本编辑器工具栏操作
+  const handleEditorCommand = (command: string, _value?: string) => {
+    switch (command) {
+      case 'bold':
+        RichTextEditor.bold();
+        break;
+      case 'italic':
+        RichTextEditor.italic();
+        break;
+      case 'underline':
+        RichTextEditor.underline();
+        break;
+      case 'heading':
+        RichTextEditor.insertHeading(2);
+        break;
+      case 'paragraph':
+        RichTextEditor.insertParagraph();
+        break;
+      case 'link':
+        const url = prompt('请输入链接地址:', 'https://');
+        if (url) {
+          RichTextEditor.insertLink(url);
+        }
+        break;
+      case 'image':
+        // 触发图片文件选择
+        const imageInput = document.createElement('input');
+        imageInput.type = 'file';
+        imageInput.accept = 'image/*';
+        imageInput.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file && contentEditableRef.current) {
+            RichTextEditor.insertImage(file, contentEditableRef.current);
+          }
+        };
+        imageInput.click();
+        break;
+      default:
+        break;
+    }
   };
   
   // 封面图上传
@@ -160,9 +348,75 @@ const AchievementPublishPage: React.FC = () => {
   };
   
   // 存草稿
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     setShowSaveDraftModal(false);
-    alert('草稿保存成功！');
+    
+    if (!formData.title) {
+      alert('请输入成果标题');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // 处理封面图上传
+      let coverUrl = '';
+      if (formData.coverImage) {
+        const fileName = `cover_${Date.now()}.${formData.coverImage.name.split('.').pop()}`;
+        const filePath = `achievements/${currentUserId}/${fileName}`;
+        const uploadResult = await AchievementService.uploadFile(formData.coverImage, 'achievement-images', filePath);
+        
+        if (uploadResult.success && uploadResult.url) {
+          coverUrl = uploadResult.url;
+        } else {
+          // 显示详细错误信息
+          const userChoice = confirm(`封面图上传失败！\n\n${uploadResult.message}\n\n是否仍要保存草稿（将不包含封面图）？`);
+          if (!userChoice) {
+            throw new Error('用户取消了草稿保存');
+          }
+          coverUrl = ''; // 设为空字符串，不包含封面图
+        }
+      }
+      
+      // 处理富文本中的图片
+      let processedContent = formData.content;
+      const imageResult = await AchievementService.processRichTextImages(formData.content, currentUserId);
+      if (imageResult.success && imageResult.processedContent) {
+        processedContent = imageResult.processedContent;
+      } else if (imageResult.message) {
+        console.warn('富文本图片处理失败:', imageResult.message);
+        // 富文本图片处理失败不阻止成果发布，但显示警告
+        alert(`部分图片上传失败，但成果仍会发布\n\n${imageResult.message}`);
+      }
+      
+      // 保存草稿数据
+      const draftData = {
+        title: formData.title,
+        description: processedContent,
+        type_id: formData.typeId || ACHIEVEMENT_TYPES[0].id, // 默认第一个类型
+        cover_url: coverUrl,
+        video_url: '', // 暂时不处理视频
+        publisher_id: currentUserId,
+        instructor_id: formData.instructorId || instructors[0]?.id || '',
+        parents_id: formData.parentsId || null
+      };
+      
+      const result = await AchievementService.saveDraft(draftData);
+      
+      if (result.success) {
+        alert('草稿保存成功！');
+        // 可以跳转到成果管理页面
+        // navigate('/achievement-management');
+      } else {
+        alert(result.message || '草稿保存失败');
+      }
+      
+    } catch (error) {
+      console.error('Save draft error:', error);
+      alert('草稿保存失败，请稍后重试');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // 发布成果
@@ -173,7 +427,7 @@ const AchievementPublishPage: React.FC = () => {
       return;
     }
     
-    if (!formData.type) {
+    if (!formData.typeId) {
       alert('请选择成果类型');
       return;
     }
@@ -183,18 +437,98 @@ const AchievementPublishPage: React.FC = () => {
       return;
     }
     
+    if (!formData.instructorId) {
+      alert('请选择指导老师');
+      return;
+    }
+    
     setShowSelectApproverModal(true);
   };
   
   // 确认发布
-  const handleConfirmPublish = () => {
+  const handleConfirmPublish = async () => {
     if (selectedApprovers.length === 0) {
       alert('请至少选择一位审批人');
       return;
     }
     
     setShowSelectApproverModal(false);
-    alert('成果发布成功！');
+    setIsLoading(true);
+    
+    try {
+      // 处理封面图上传
+      let coverUrl = '';
+      if (formData.coverImage) {
+        const fileName = `cover_${Date.now()}.${formData.coverImage.name.split('.').pop()}`;
+        const filePath = `achievements/${currentUserId}/${fileName}`;
+        const uploadResult = await AchievementService.uploadFile(formData.coverImage, 'achievement-images', filePath);
+        
+        if (uploadResult.success && uploadResult.url) {
+          coverUrl = uploadResult.url;
+        } else {
+          // 显示详细错误信息
+          const userChoice = confirm(`封面图上传失败！\n\n${uploadResult.message}\n\n是否仍要保存草稿（将不包含封面图）？`);
+          if (!userChoice) {
+            throw new Error('用户取消了草稿保存');
+          }
+          coverUrl = ''; // 设为空字符串，不包含封面图
+        }
+      }
+      
+      // 处理视频上传
+      let videoUrl = '';
+      if (formData.demoVideo) {
+        const fileName = `video_${Date.now()}.${formData.demoVideo.name.split('.').pop()}`;
+        const filePath = `achievements/${currentUserId}/${fileName}`;
+        const uploadResult = await AchievementService.uploadFile(formData.demoVideo, 'achievement-videos', filePath);
+        
+        if (uploadResult.success && uploadResult.url) {
+          videoUrl = uploadResult.url;
+        } else {
+          console.warn('视频上传失败:', uploadResult.message);
+          // 视频上传失败不阻止成果发布，但记录警告
+          alert(`视频上传失败，但成果仍会发布\n\n${uploadResult.message}`);
+        }
+      }
+      
+      // 处理富文本中的图片
+      let processedContent = formData.content;
+      const imageResult = await AchievementService.processRichTextImages(formData.content, currentUserId);
+      if (imageResult.success && imageResult.processedContent) {
+        processedContent = imageResult.processedContent;
+      } else if (imageResult.message) {
+        console.warn('富文本图片处理失败:', imageResult.message);
+        // 富文本图片处理失败不阻止成果发布，但显示警告
+        alert(`部分图片上传失败，但成果仍会发布\n\n${imageResult.message}`);
+      }
+      
+      // 创建成果数据
+      const achievementData = {
+        title: formData.title,
+        description: processedContent,
+        type_id: formData.typeId,
+        cover_url: coverUrl,
+        video_url: videoUrl,
+        publisher_id: currentUserId,
+        instructor_id: formData.instructorId,
+        parents_id: formData.parentsId || null
+      };
+      
+      const result = await AchievementService.createAchievement(achievementData);
+      
+      if (result.success) {
+        alert('成果发布成功！');
+        navigate('/achievement-management'); // 跳转到成果管理页面
+      } else {
+        alert(result.message || '成果发布失败');
+      }
+      
+    } catch (error) {
+      console.error('Publish achievement error:', error);
+      alert('成果发布失败，请稍后重试');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // AI功能
@@ -416,16 +750,16 @@ const AchievementPublishPage: React.FC = () => {
                         </label>
                         <select 
                           id="achievement-type"
-                          value={formData.type}
-                          onChange={(e) => handleFormFieldChange('type', e.target.value)}
+                          value={formData.typeId}
+                          onChange={(e) => handleTypeChange(e.target.value)}
                           className="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
                         >
                           <option value="">请选择成果类型</option>
-                          <option value="project">项目报告</option>
-                          <option value="paper">论文</option>
-                          <option value="software">软件作品</option>
-                          <option value="experiment">实验报告</option>
-                          <option value="other">其他</option>
+                          {achievementTypes.map(type => (
+                            <option key={type.id} value={type.id}>
+                              {type.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -469,6 +803,21 @@ const AchievementPublishPage: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-text-secondary mb-1">合作伙伴</label>
                       <div className="space-y-2">
+                        <div className="flex items-center">
+                          <input 
+                            type="text" 
+                            value={students.find(s => s.id === formData.parentsId)?.username || ''}
+                            readOnly
+                            className="flex-1 px-4 py-2 border border-border-light rounded-lg bg-bg-gray text-text-muted transition-all" 
+                            placeholder="可选：从学生列表中选择合作伙伴"
+                          />
+                          <button 
+                            onClick={() => setShowStudentModal(true)}
+                            className="ml-2 px-3 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-all"
+                          >
+                            <i className="fas fa-search"></i>
+                          </button>
+                        </div>
                         {formData.partners.map((partner, index) => (
                           <div key={index} className="flex items-center">
                             <input 
@@ -491,15 +840,29 @@ const AchievementPublishPage: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-text-secondary mb-1">指导老师</label>
                       <div className="space-y-2">
-                        {formData.instructors.map((instructor, index) => (
-                          <div key={index} className="flex items-center">
+                        <div className="flex items-center">
+                          <input 
+                            type="text" 
+                            value={formData.instructors[0] || ''}
+                            readOnly
+                            className="flex-1 px-4 py-2 border border-border-light rounded-lg bg-bg-gray text-text-muted transition-all" 
+                            placeholder="请从教师列表中选择"
+                          />
+                          <button 
+                            onClick={() => setShowInstructorModal(true)}
+                            className="ml-2 px-3 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-all"
+                          >
+                            <i className="fas fa-search"></i>
+                          </button>
+                        </div>
+                        {formData.instructors.slice(1).map((instructor, index) => (
+                          <div key={index + 1} className="flex items-center">
                             <input 
                               type="text" 
                               value={instructor}
-                              onChange={(e) => handleInstructorChange(index, e.target.value)}
+                              onChange={(e) => handleInstructorChange(index + 1, e.target.value)}
                               className="flex-1 px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all" 
                               placeholder="输入指导老师姓名"
-                              readOnly={index === 0}
                             />
                             <button 
                               onClick={handleAddInstructor}
@@ -519,27 +882,55 @@ const AchievementPublishPage: React.FC = () => {
                   <h3 className="text-lg font-semibold text-text-primary mb-4">成果内容</h3>
                   {/* 工具栏 */}
                   <div className={`${styles.editorToolbar} flex flex-wrap items-center p-2 mb-2`}>
-                    <button className="p-2 rounded hover:bg-bg-gray" title="加粗">
+                    <button 
+                      onClick={() => handleEditorCommand('bold')}
+                      className="p-2 rounded hover:bg-bg-gray" 
+                      title="加粗"
+                    >
                       <i className="fas fa-bold"></i>
                     </button>
-                    <button className="p-2 rounded hover:bg-bg-gray" title="斜体">
+                    <button 
+                      onClick={() => handleEditorCommand('italic')}
+                      className="p-2 rounded hover:bg-bg-gray" 
+                      title="斜体"
+                    >
                       <i className="fas fa-italic"></i>
                     </button>
-                    <button className="p-2 rounded hover:bg-bg-gray" title="下划线">
+                    <button 
+                      onClick={() => handleEditorCommand('underline')}
+                      className="p-2 rounded hover:bg-bg-gray" 
+                      title="下划线"
+                    >
                       <i className="fas fa-underline"></i>
                     </button>
                     <div className="h-6 w-px bg-border-light mx-1"></div>
-                    <button className="p-2 rounded hover:bg-bg-gray" title="标题">
+                    <button 
+                      onClick={() => handleEditorCommand('heading')}
+                      className="p-2 rounded hover:bg-bg-gray" 
+                      title="标题"
+                    >
                       <i className="fas fa-heading"></i>
                     </button>
-                    <button className="p-2 rounded hover:bg-bg-gray" title="段落">
+                    <button 
+                      onClick={() => handleEditorCommand('paragraph')}
+                      className="p-2 rounded hover:bg-bg-gray" 
+                      title="段落"
+                    >
                       <i className="fas fa-paragraph"></i>
                     </button>
                     <div className="h-6 w-px bg-border-light mx-1"></div>
-                    <button className="p-2 rounded hover:bg-bg-gray" title="插入图片">
+                    <button 
+                      onClick={() => handleEditorCommand('image')}
+                      className="p-2 rounded hover:bg-bg-gray" 
+                      title="插入图片"
+                    >
                       <i className="fas fa-image"></i>
                     </button>
-                    <button className="p-2 rounded hover:bg-bg-gray" title="插入链接">
+                    <button 
+                      onClick={() => handleEditorCommand('link')}
+                      className="p-2 rounded hover:bg-bg-gray" 
+                      title="插入链接"
+                    >
                       <i className="fas fa-link"></i>
                     </button>
                     <div className="h-6 w-px bg-border-light mx-1"></div>
@@ -565,7 +956,6 @@ const AchievementPublishPage: React.FC = () => {
                     className="min-h-[300px] p-4 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all" 
                     contentEditable="true" 
                     suppressContentEditableWarning={true}
-                    placeholder="请输入成果详细内容..."
                   />
                 </div>
                 
@@ -834,6 +1224,25 @@ const AchievementPublishPage: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* 用户选择模态框 */}
+      <UserSelectModal
+        isOpen={showInstructorModal}
+        users={instructors}
+        title="选择指导老师"
+        selectedUserId={formData.instructorId}
+        onSelect={handleInstructorSelect}
+        onClose={() => setShowInstructorModal(false)}
+      />
+      
+      <UserSelectModal
+        isOpen={showStudentModal}
+        users={students}
+        title="选择合作伙伴（其他学生）"
+        selectedUserId={formData.parentsId}
+        onSelect={handleStudentSelect}
+        onClose={() => setShowStudentModal(false)}
+      />
     </div>
   );
 };

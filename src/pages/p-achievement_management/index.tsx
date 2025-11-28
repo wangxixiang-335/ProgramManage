@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import styles from './styles.module.css';
 
 interface Achievement {
@@ -18,7 +18,6 @@ interface Achievement {
 type FilterType = 'all' | 'published' | 'pending' | 'rejected' | 'draft';
 
 const AchievementManagement: React.FC = () => {
-  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [searchTerm, setSearchTerm] = useState('');
