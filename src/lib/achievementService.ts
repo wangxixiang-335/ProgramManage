@@ -68,13 +68,13 @@ export class AchievementService {
     }
   }
 
-  // 获取所有学生（role=1，除了当前用户）
+  // 获取所有学生（role=2，除了当前用户）
   static async getStudentsExceptCurrent(currentUserId: string): Promise<{ success: boolean; data?: User[]; message?: string }> {
     try {
       const { data, error } = await supabase
         .from('users')
         .select('id, username, email, role, created_at')
-        .eq('role', 1)
+        .eq('role', 2)
         .neq('id', currentUserId)
         .order('username');
 
@@ -89,6 +89,171 @@ export class AchievementService {
     } catch (error) {
       console.error('Error fetching students:', error);
       return { success: false, message: error instanceof Error ? error.message : '获取学生列表失败' };
+    }
+  }
+
+  // 根据用户角色获取成果列表
+  static async getAchievementsByRole(userRole: number, userId?: string): Promise<{ success: boolean; data?: Achievement[]; message?: string }> {
+    try {
+      let query;
+
+      if (userRole === 1) {
+        // 学生 (role=1) - 获取自己的所有成果
+        console.log('📊 获取学生成果，用户ID:', userId);
+        query = supabase
+          .from('achievements')
+          .select(`
+            *,
+            achievement_types!achievements_type_id_fkey (name),
+            users!achievements_publisher_id_fkey (username, email)
+          `)
+          .eq('publisher_id', userId);
+      } else if (userRole === 2) {
+        // 教师 (role=2) - 获取所有学生的成果
+        console.log('📊 获取所有学生成果');
+        
+        // 先获取所有学生ID
+        const { data: students, error: studentsError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('role', 1);
+        
+        if (studentsError) {
+          throw new Error(studentsError.message);
+        }
+        
+        const studentIds = students?.map(s => s.id) || [];
+        
+        query = supabase
+          .from('achievements')
+          .select(`
+            *,
+            achievement_types!achievements_type_id_fkey (name),
+            users!achievements_publisher_id_fkey (username, email),
+            instructor:users!achievements_instructor_id_fkey (username, email)
+          `)
+          .in('publisher_id', studentIds);
+      } else {
+        // 管理员或其他角色 - 获取所有成果
+        console.log('📊 获取所有成果');
+        query = supabase
+          .from('achievements')
+          .select(`
+            *,
+            achievement_types!achievements_type_id_fkey (name),
+            users!achievements_publisher_id_fkey (username, email),
+            instructor:users!achievements_instructor_id_fkey (username, email)
+          `);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        const errorMessage = typeof error === 'object' && error !== null && 'message' in error 
+          ? (error as { message: string }).message 
+          : String(error);
+        throw new Error(errorMessage);
+      }
+
+      // 转换状态数字为字符串
+      const processedData = data?.map(achievement => ({
+        ...achievement,
+        status: this.convertStatusFromNumber(achievement.status as AchievementStatusCode)
+      }));
+
+      console.log(`📊 成果查询结果 (${userRole === 1 ? '教师' : userRole === 2 ? '学生' : '全部'}):`, processedData?.length, '条记录');
+
+      return { success: true, data: processedData };
+    } catch (error) {
+      console.error('Error fetching achievements by role:', error);
+      return { success: false, message: error instanceof Error ? error.message : '获取成果列表失败' };
+    }
+  }
+
+  // 根据用户ID和角色获取相关成果列表
+  static async getAchievementsByUser(userRole: number, userId: string): Promise<{ success: boolean; data?: Achievement[]; message?: string }> {
+    try {
+      console.log('📊 获取用户相关成果，用户角色:', userRole, '用户ID:', userId);
+      
+      let query;
+
+      if (userRole === 2) {
+        // 教师 (role=2) - 获取自己发布的成果（publisher_id 等于教师ID）
+        console.log('📊 获取教师自己发布的成果');
+        query = supabase
+          .from('achievements')
+          .select(`
+            *,
+            achievement_types!achievements_type_id_fkey (name),
+            users!achievements_publisher_id_fkey (username, email)
+          `)
+          .eq('publisher_id', userId);
+      } else {
+        // 学生 (role=1) - 获取自己的成果
+        console.log('📊 获取学生自己的成果');
+        query = supabase
+          .from('achievements')
+          .select(`
+            *,
+            achievement_types!achievements_type_id_fkey (name),
+            users!achievements_publisher_id_fkey (username, email)
+          `)
+          .eq('publisher_id', userId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        const errorMessage = typeof error === 'object' && error !== null && 'message' in error 
+          ? (error as { message: string }).message 
+          : String(error);
+        throw new Error(errorMessage);
+      }
+
+      // 转换状态数字为字符串
+      const processedData = data?.map(achievement => ({
+        ...achievement,
+        status: this.convertStatusFromNumber(achievement.status as AchievementStatusCode)
+      }));
+
+      console.log('📊 用户相关成果查询结果:', processedData?.length, '条记录');
+
+      return { success: true, data: processedData };
+    } catch (error) {
+      console.error('Error fetching achievements by user:', error);
+      return { success: false, message: error instanceof Error ? error.message : '获取用户相关成果列表失败' };
+    }
+  }
+
+  // 获取当前用户信息
+  static async getCurrentUser(userId: string): Promise<{ success: boolean; data?: User; message?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId);
+
+      if (error) {
+        const errorMessage = typeof error === 'object' && error !== null && 'message' in error 
+          ? (error as { message: string }).message 
+          : String(error);
+        throw new Error(errorMessage);
+      }
+
+      // 检查是否找到了用户
+      if (!data || data.length === 0) {
+        return { success: false, message: `用户ID ${userId} 不存在` };
+      }
+
+      // 如果找到多个用户，取第一个
+      if (data.length > 1) {
+        console.warn(`警告: 找到 ${data.length} 个相同ID的用户，使用第一个`);
+      }
+
+      return { success: true, data: data[0] };
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      return { success: false, message: error instanceof Error ? error.message : '获取用户信息失败' };
     }
   }
 
@@ -414,7 +579,7 @@ export class AchievementService {
             username,
             email
           ),
-          achievement_type:achievement_types (
+          achievement_type:achievement_types!achievements_type_id_fkey (
             id,
             name
           )
@@ -489,7 +654,7 @@ export class AchievementService {
             username,
             email
           ),
-          achievement_type:achievement_types (
+          achievement_type:achievement_types!achievements_type_id_fkey (
             id,
             name
           )
@@ -684,7 +849,7 @@ export class AchievementService {
             username,
             email
           ),
-          achievement_type:achievement_types (
+          achievement_type:achievement_types!achievements_type_id_fkey (
             id,
             name
           )

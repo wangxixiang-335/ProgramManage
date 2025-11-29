@@ -91,7 +91,7 @@ const AchievementPublishPage: React.FC = () => {
   const navigate = useNavigate();
   
   // 假设当前用户ID（实际应该从登录状态或localStorage获取）
-  const currentUserId = '72ee2ee4-b41a-4389-a6a0-e2b59fb5980b'; // 测试学生账号ID
+  const currentUserId = 'f88f2004-9bf3-434a-bc18-4dabffe6b7e1'; // 测试学生账号ID (role=1, 测试用户)
   
   // 页面状态
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
