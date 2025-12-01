@@ -405,14 +405,20 @@ export class AchievementService {
   }
 
   // 创建成果
-  static async createAchievement(achievementData: CreateAchievementRequest): Promise<{ success: boolean; data?: Achievement; message?: string }> {
+  static async createAchievement(
+    achievementData: CreateAchievementRequest, 
+    directPublish = false // 是否直接发布（无需审批）
+  ): Promise<{ success: boolean; data?: Achievement; message?: string }> {
     try {
+      // 根据用户角色决定状态
+      const status = directPublish ? STATUS_TO_NUMBER['approved'] : STATUS_TO_NUMBER['pending'];
+      
       // 直接使用数字状态，因为数据库字段是smallint类型
       const { data, error } = await supabase
         .from('achievements')
         .insert([{
           ...achievementData,
-          status: STATUS_TO_NUMBER['pending'], // 新创建的成果默认为待审核状态（转换为数字）
+          status, // 根据directPublish参数决定状态
           created_at: new Date().toISOString()
         }])
         .select()
