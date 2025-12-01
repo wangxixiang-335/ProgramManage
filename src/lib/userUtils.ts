@@ -1,14 +1,15 @@
 export interface User {
-  id: string;
-  name: string;
-  student_id?: string;
-  work_number?: string;
-  department?: string;
-  email?: string;
-  phone?: string;
+  id: number;
+  username: string;
+  email: string;
   role: number; // 1: 学生, 2: 教师, 3: 管理员
   created_at?: string;
   updated_at?: string;
+  student_id?: string;
+  work_number?: string;
+  department?: string;
+  phone?: string;
+  name?: string;
 }
 
 export const getCurrentUser = (): User | null => {

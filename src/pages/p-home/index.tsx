@@ -14,6 +14,7 @@ const HomePage: React.FC = () => {
   const [projectSearchTerm, setProjectSearchTerm] = useState<string>('');
   const [projectTypeFilter, setProjectTypeFilter] = useState<string>('');
   const [activePage, setActivePage] = useState<number>(1);
+  const [stats, setStats] = useState<any>(null);
   const chartRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -93,8 +94,11 @@ const HomePage: React.FC = () => {
     const Chart = (window as any).Chart;
     
     try {
+      console.log('🚀 开始初始化学生图表...');
       // 获取学生统计数据
-      const stats = await StatisticsService.getStudentStatistics();
+      const statsData = await StatisticsService.getStudentStatistics();
+      console.log('📊 获取到的统计数据:', statsData);
+      setStats(statsData);
       
       // 发布量统计图（柱状图）
       const publishCtx = document.getElementById('student-publish-chart') as HTMLCanvasElement;
@@ -104,10 +108,10 @@ const HomePage: React.FC = () => {
           new Chart(ctx, {
             type: 'bar',
             data: {
-              labels: stats.publicationByType.labels,
+              labels: statsData.publicationByType.labels,
               datasets: [{
                 label: '发布数量',
-                data: stats.publicationByType.data,
+                data: statsData.publicationByType.data,
                 backgroundColor: [
                   'rgba(255, 140, 0, 0.8)',
                   'rgba(255, 140, 0, 0.7)',
@@ -163,10 +167,10 @@ const HomePage: React.FC = () => {
           new Chart(ctx, {
             type: 'line',
             data: {
-              labels: stats.scoreTrend.labels,
+              labels: statsData.scoreTrend.labels,
               datasets: [{
                 label: '成绩',
-                data: stats.scoreTrend.scores,
+                data: statsData.scoreTrend.scores,
                 borderColor: 'rgba(255, 140, 0, 1)',
                 backgroundColor: 'rgba(255, 140, 0, 0.1)',
                 borderWidth: 3,
@@ -399,6 +403,51 @@ const HomePage: React.FC = () => {
             <i className="fas fa-chart-line text-orange-500 mr-3"></i>
             我的数据看板
           </h3>
+          
+          {/* 统计卡片 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-xl p-6 border border-border-light">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-text-muted mb-1">参与项目总数</p>
+                  <p className="text-2xl font-bold text-text-primary">
+                    {stats?.studentStats?.totalProjects || 0}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-folder text-blue-600 text-xl"></i>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 border border-border-light">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-text-muted mb-1">平均成绩</p>
+                  <p className="text-2xl font-bold text-text-primary">
+                    {stats?.studentStats?.averageScore?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-chart-bar text-green-600 text-xl"></i>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 border border-border-light">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-text-muted mb-1">项目完成率</p>
+                  <p className="text-2xl font-bold text-text-primary">
+                    {stats?.studentStats?.completionRate?.toFixed(2) || '0.00'}%
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-check-circle text-orange-600 text-xl"></i>
+                </div>
+              </div>
+            </div>
+          </div>
           
           {/* 发布量统计图 */}
           <div className="mb-8">

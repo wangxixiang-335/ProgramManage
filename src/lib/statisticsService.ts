@@ -17,6 +17,11 @@ export interface StatisticsData {
     pass: number[];
     labels: string[];
   };
+  studentStats?: {
+    totalProjects: number;
+    averageScore: number;
+    completionRate: number;
+  };
 }
 
 export class StatisticsService {
@@ -28,15 +33,68 @@ export class StatisticsService {
         throw new Error('用户未登录');
       }
 
-      // 模拟数据 - 在实际项目中应该从数据库获取
-      const mockData: StatisticsData = {
+      const userId = currentUser.id;
+      // 获取学生的所有成果
+      const { data: achievements, error: achievementsError } = await supabase
+        .from('achievements')
+        .select(`
+          score, 
+          status, 
+          achievement_types!achievements_type_id_fkey(name), 
+          created_at
+        `)
+        .eq('publisher_id', userId);
+
+      if (achievementsError) throw achievementsError;
+
+      // 计算统计数据
+      const totalProjects = achievements?.length || 0; // 参与项目总数 = 发布的所有成果数量
+      // 处理状态可能是数字或字符串的情况
+      const passedProjects = achievements?.filter(a => a.status === 2 || a.status === 'approved')?.length || 0; // 2 = approved 或 'approved'
+      const passedScores = achievements?.filter(a => (a.status === 2 || a.status === 'approved') && a.score !== null)?.map(a => a.score) || [];
+      const totalScore = passedScores.reduce((sum, score) => sum + score, 0);
+      // 平均成绩 = 通过的项目的分数和除以该学生发布的所有成果的数量
+      const averageScore = totalProjects > 0 ? totalScore / totalProjects : 0;
+      // 项目完成率 = 通过的项目数量除以该学生发布的所有成果的数量
+      const completionRate = totalProjects > 0 ? (passedProjects / totalProjects) * 100 : 0;
+
+      // 统计各类型的数量
+      const typeCount: { [key: string]: number } = {};
+      achievements?.forEach(achievement => {
+        const typeName = achievement.achievement_types?.name || '未分类';
+        typeCount[typeName] = (typeCount[typeName] || 0) + 1;
+      });
+
+      // 准备发布量统计数据
+      const typeLabels = Object.keys(typeCount);
+      const typeData = Object.values(typeCount);
+
+      // 准备成绩趋势数据（按时间排序）
+      const scoreData = achievements
+        ?.filter(a => a.score !== null)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        .map((a, index) => ({
+          score: a.score!,
+          label: `第${index + 1}次`
+        })) || [];
+
+      console.log('📊 计算出的统计数据:', {
+        totalProjects,
+        passedProjects,
+        averageScore,
+        completionRate,
+        typeCount: typeLabels.length,
+        scoreDataPoints: scoreData.length
+      });
+
+      return {
         publicationByType: {
-          labels: ['项目报告', '论文', '软件作品', '实验报告', '其他'],
-          data: [8, 5, 12, 7, 3]
+          labels: typeLabels,
+          data: typeData
         },
         scoreTrend: {
-          labels: ['第1次', '第2次', '第3次', '第4次', '第5次', '第6次', '第7次'],
-          scores: [78, 82, 85, 88, 92, 89, 95]
+          labels: scoreData.map(d => d.label),
+          scores: scoreData.map(d => d.score)
         },
         studentPublications: {
           excellent: [],
@@ -44,10 +102,13 @@ export class StatisticsService {
           average: [],
           pass: [],
           labels: []
+        },
+        studentStats: {
+          totalProjects,
+          averageScore: Math.round(averageScore * 100) / 100, // 保留两位小数
+          completionRate: Math.round(completionRate * 100) / 100 // 保留两位小数
         }
       };
-
-      return mockData;
     } catch (error) {
       console.error('获取学生统计数据失败:', error);
       // 返回默认数据
@@ -66,6 +127,11 @@ export class StatisticsService {
           average: [],
           pass: [],
           labels: []
+        },
+        studentStats: {
+          totalProjects: 0,
+          averageScore: 0,
+          completionRate: 0
         }
       };
     }
