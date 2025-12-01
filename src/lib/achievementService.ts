@@ -161,7 +161,7 @@ export class AchievementService {
         status: this.convertStatusFromNumber(achievement.status as AchievementStatusCode)
       }));
 
-      console.log(`📊 成果查询结果 (${userRole === 1 ? '教师' : userRole === 2 ? '学生' : '全部'}):`, processedData?.length, '条记录');
+      console.log(`📊 成果查询结果 (${userRole === 1 ? '学生' : userRole === 2 ? '教师' : '全部'}):`, processedData?.length, '条记录');
 
       return { success: true, data: processedData };
     } catch (error) {

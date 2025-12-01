@@ -62,7 +62,7 @@ const AchievementViewPage: React.FC = () => {
           }
         } else if (userResult.data.role === 2) {
           // 如果是教师 (role=2)，查看所有学生成果
-          const achievementsResult = await AchievementService.getAchievementsByRole(1); // role=1 是学生，获取所有学生成果
+          const achievementsResult = await AchievementService.getAchievementsByRole(2); // role=2 是教师，获取所有学生成果
           if (achievementsResult.success) {
             setAchievements(achievementsResult.data || []);
             console.log('📊 所有学生成果加载成功:', achievementsResult.data?.length, '条');
