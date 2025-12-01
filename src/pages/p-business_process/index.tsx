@@ -3,17 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { AchievementService } from '../../lib/achievementService';
+import { Achievement, User } from '../../types/achievement';
 import styles from './styles.module.css';
-
-interface Achievement {
-  id: string;
-  title: string;
-  status: 'published' | 'reviewing' | 'rejected' | 'draft';
-  time: string;
-  coverImage?: string;
-  rejectionReason?: string;
-  hasApprovalHistory?: boolean;
-}
 
 const BusinessProcessPage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,52 +17,74 @@ const BusinessProcessPage: React.FC = () => {
   const [showApprovalHistoryModal, setShowApprovalHistoryModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [currentDeleteId, setCurrentDeleteId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [achievements, setAchievements] = useState<Achievement[]>([
-    {
-      id: 'achievement-1',
-      title: '智能校园管理系统',
-      status: 'published',
-      time: '发布时间：2023-11-15 14:30',
-      coverImage: 'https://s.coze.cn/image/cFFMMo4AR10/'
-    },
-    {
-      id: 'achievement-2',
-      title: '大数据分析平台',
-      status: 'reviewing',
-      time: '提交时间：2023-12-05 09:15',
-      coverImage: 'https://s.coze.cn/image/KJmyndyDov8/'
-    },
-    {
-      id: 'achievement-3',
-      title: '移动学习APP',
-      status: 'rejected',
-      time: '提交时间：2023-11-28 16:45',
-      coverImage: 'https://s.coze.cn/image/kPiKNdCCY1g/',
-      rejectionReason: '功能设计不够完善，缺少用户体验测试数据，建议补充详细的测试报告和用户反馈。'
-    },
-    {
-      id: 'achievement-4',
-      title: '智能推荐系统',
-      status: 'draft',
-      time: '最后编辑：2023-12-10 11:20'
-    },
-    {
-      id: 'achievement-5',
-      title: '校园社交平台',
-      status: 'rejected',
-      time: '提交时间：2023-11-20 10:30',
-      coverImage: 'https://s.coze.cn/image/zunON49PoaY/',
-      rejectionReason: '安全机制不完善，缺少隐私保护措施，建议加强用户数据安全保护。',
-      hasApprovalHistory: true
-    }
-  ]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [filteredAchievements, setFilteredAchievements] = useState<Achievement[]>([]);
 
+  // 加载学生成果数据
   useEffect(() => {
+    const loadStudentAchievements = async () => {
+      try {
+        setIsLoading(true);
+        
+        // 获取当前用户ID
+        const currentUserId = String(user?.id || localStorage.getItem('userId') || '');
+        
+        if (!currentUserId) {
+          console.error('未找到用户ID');
+          setIsLoading(false);
+          return;
+        }
+        
+        // 获取当前用户信息
+        const userResult = await AchievementService.getCurrentUser(currentUserId);
+        if (userResult.success && userResult.data) {
+          console.log('👤 当前用户:', userResult.data);
+          
+          // 如果是学生角色 (role=1)，获取自己的成果
+          if (userResult.data.role === 1) {
+            const achievementsResult = await AchievementService.getAchievementsByUser(userResult.data.role, currentUserId);
+            if (achievementsResult.success) {
+              setAchievements(achievementsResult.data || []);
+              console.log('📊 学生成果加载成功:', achievementsResult.data?.length, '条');
+            } else {
+              console.error('加载学生成果失败:', achievementsResult.message);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('加载学生成果失败:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadStudentAchievements();
+    
     const originalTitle = document.title;
     document.title = '软院项目通 - 成果管理';
     return () => { document.title = originalTitle; };
-  }, []);
+  }, [user]);
+
+  // 筛选成果
+  useEffect(() => {
+    let filtered = achievements;
+
+    // 按状态筛选
+    if (selectedStatusFilter !== 'all') {
+      filtered = filtered.filter(achievement => achievement.status === selectedStatusFilter);
+    }
+
+    // 按名称搜索
+    if (achievementSearchValue) {
+      filtered = filtered.filter(achievement => 
+        achievement.title.toLowerCase().includes(achievementSearchValue.toLowerCase())
+      );
+    }
+
+    setFilteredAchievements(filtered);
+  }, [achievements, selectedStatusFilter, achievementSearchValue]);
 
   const handleGlobalSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -81,23 +95,23 @@ const BusinessProcessPage: React.FC = () => {
   };
 
   const handleAchievementSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const searchTerm = achievementSearchValue;
-      console.log('成果搜索:', searchTerm);
-      filterAchievementsByName(searchTerm);
-    }
+      if (e.key === 'Enter') {
+        const searchTerm = achievementSearchValue;
+        console.log('成果搜索:', searchTerm);
+        // 搜索功能现在通过useEffect处理
+      }
   };
 
   const handleStatusFilterClick = (status: string) => {
     setSelectedStatusFilter(status);
     console.log('筛选状态:', status);
-    filterAchievementsByStatus(status);
+    // 筛选功能现在通过useEffect处理
   };
 
   const handleEditAchievement = (achievementId: string) => {
     console.log('编辑成果:', achievementId);
-    // 这里可以添加编辑成果的逻辑，例如跳转到编辑页面
-    // navigate(`/achievement-edit?id=${achievementId}`);
+    // 跳转到成果发布页面进行编辑
+    navigate(`/project-intro?edit=${achievementId}`);
   };
 
   const handleDeleteAchievement = (achievementId: string) => {
@@ -105,12 +119,26 @@ const BusinessProcessPage: React.FC = () => {
     setShowDeleteConfirmModal(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (currentDeleteId) {
-      console.log('确认删除成果:', currentDeleteId);
-      setAchievements(prev => prev.filter(achievement => achievement.id !== currentDeleteId));
-      setShowDeleteConfirmModal(false);
-      setCurrentDeleteId(null);
+      try {
+        console.log('确认删除成果:', currentDeleteId);
+        const result = await AchievementService.deleteAchievement(currentDeleteId);
+        
+        if (result.success) {
+          setAchievements(prev => prev.filter(achievement => achievement.id !== currentDeleteId));
+          console.log('删除成功');
+        } else {
+          console.error('删除失败:', result.message);
+          alert('删除失败: ' + result.message);
+        }
+      } catch (error) {
+        console.error('删除过程中出错:', error);
+        alert('删除过程中出错');
+      } finally {
+        setShowDeleteConfirmModal(false);
+        setCurrentDeleteId(null);
+      }
     }
   };
 
@@ -119,15 +147,28 @@ const BusinessProcessPage: React.FC = () => {
     setCurrentDeleteId(null);
   };
 
-  const handleWithdrawAchievement = (achievementId: string) => {
-    console.log('撤回成果:', achievementId);
-    setAchievements(prev => 
-      prev.map(achievement => 
-        achievement.id === achievementId 
-          ? { ...achievement, status: 'draft' as const, time: '最后编辑：' + new Date().toLocaleString() }
-          : achievement
-      )
-    );
+  const handleWithdrawAchievement = async (achievementId: string) => {
+    try {
+      console.log('撤回成果:', achievementId);
+      const result = await AchievementService.updateAchievement(achievementId, { status: 'draft' });
+      
+      if (result.success) {
+        setAchievements(prev => 
+          prev.map(achievement => 
+            achievement.id === achievementId 
+              ? { ...achievement, status: 'draft' as const, time: '最后编辑：' + new Date().toLocaleString() }
+              : achievement
+          )
+        );
+        console.log('撤回成功');
+      } else {
+        console.error('撤回失败:', result.message);
+        alert('撤回失败: ' + result.message);
+      }
+    } catch (error) {
+      console.error('撤回过程中出错:', error);
+      alert('撤回过程中出错');
+    }
   };
 
   const handleAiSolution = (achievementId: string) => {
@@ -145,21 +186,11 @@ const BusinessProcessPage: React.FC = () => {
     setShowAiSolutionModal(false);
   };
 
-  const filterAchievementsByStatus = (status: string) => {
-    // 这里可以添加实际的筛选逻辑
-    console.log('按状态筛选成果:', status);
-  };
-
-  const filterAchievementsByName = (keyword: string) => {
-    // 这里可以添加实际的搜索逻辑
-    console.log('按名称搜索成果:', keyword);
-  };
-
   const getStatusDisplay = (status: Achievement['status']) => {
     switch (status) {
-      case 'published':
+      case 'approved':
         return { text: '已发布', className: 'bg-green-100 text-green-800' };
-      case 'reviewing':
+      case 'pending':
         return { text: '审核中', className: 'bg-orange-100 text-orange-800' };
       case 'rejected':
         return { text: '未通过', className: 'bg-red-100 text-red-800' };
@@ -168,6 +199,14 @@ const BusinessProcessPage: React.FC = () => {
       default:
         return { text: '未知', className: 'bg-gray-100 text-gray-800' };
     }
+  };
+
+  // 退出登录功能
+  const handleLogout = () => {
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
+    navigate('/login');
   };
 
   return (
@@ -248,10 +287,7 @@ const BusinessProcessPage: React.FC = () => {
             </li>
             <li>
               <button 
-                onClick={() => {
-                  // 可以在这里添加清除用户登录状态的逻辑
-                  navigate('/login');
-                }}
+                onClick={handleLogout}
                 className="flex items-center space-x-3 px-4 py-3 rounded-lg text-text-secondary hover:bg-gray-50 hover:text-red-500 w-full text-left"
               >
                 <i className="fas fa-sign-out-alt text-lg"></i>
@@ -295,9 +331,9 @@ const BusinessProcessPage: React.FC = () => {
                 全部成果
               </button>
               <button 
-                onClick={() => handleStatusFilterClick('published')}
+                onClick={() => handleStatusFilterClick('approved')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  selectedStatusFilter === 'published' 
+                  selectedStatusFilter === 'approved' 
                     ? 'bg-orange-500 text-white' 
                     : 'bg-bg-gray text-text-secondary hover:bg-gray-200'
                 }`}
@@ -305,9 +341,9 @@ const BusinessProcessPage: React.FC = () => {
                 已发布
               </button>
               <button 
-                onClick={() => handleStatusFilterClick('reviewing')}
+                onClick={() => handleStatusFilterClick('pending')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  selectedStatusFilter === 'reviewing' 
+                  selectedStatusFilter === 'pending' 
                     ? 'bg-orange-500 text-white' 
                     : 'bg-bg-gray text-text-secondary hover:bg-gray-200'
                 }`}
@@ -352,101 +388,106 @@ const BusinessProcessPage: React.FC = () => {
         </div>
 
         {/* 成果列表区域 */}
-        <div className="space-y-4">
-          {achievements.map((achievement) => {
-            const statusDisplay = getStatusDisplay(achievement.status);
-            
-            return (
-              <div key={achievement.id} className="bg-bg-light rounded-xl shadow-card p-4 hover:shadow-card-hover transition-shadow">
-                <div className="flex items-center">
-                  {/* 封面图 */}
-                  <div className="w-24 h-24 rounded-lg overflow-hidden mr-4 flex-shrink-0">
-                    {achievement.coverImage ? (
-                      <img 
-                        src={achievement.coverImage} 
-                        alt={`${achievement.title}成果封面`} 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                        <i className="fas fa-file-alt text-4xl text-gray-300"></i>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* 成果信息 */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-lg font-semibold text-text-primary truncate">{achievement.title}</h3>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusDisplay.className}`}>
-                        {statusDisplay.text}
-                      </span>
-                    </div>
-                    <p className="text-text-muted text-sm mb-2">{achievement.time}</p>
-                    
-                    {/* 驳回原因 */}
-                    {achievement.rejectionReason && (
-                      <div className="bg-red-50 border-l-4 border-red-400 p-3 rounded-r-lg mb-2">
-                        <p className="text-red-700 text-sm">
-                          <i className="fas fa-exclamation-circle mr-1"></i>
-                          驳回原因：{achievement.rejectionReason}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* 审批记录 */}
-                    {achievement.hasApprovalHistory && (
-                      <div className="mb-2">
-                        <button 
-                          onClick={() => handleViewApprovalHistory(achievement.id)}
-                          className="text-orange-500 text-sm hover:underline"
-                        >
-                          <i className="fas fa-history mr-1"></i>查看审批记录
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* 操作按钮 */}
-                    <div className="flex items-center space-x-2">
-                      {achievement.status === 'reviewing' ? (
-                        <button 
-                          onClick={() => handleWithdrawAchievement(achievement.id)}
-                          className="px-3 py-1 rounded-lg bg-yellow-100 text-yellow-800 text-sm font-medium hover:bg-yellow-200"
-                        >
-                          <i className="fas fa-undo mr-1"></i>撤回
-                        </button>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <i className="fas fa-spinner fa-spin text-orange-500 text-2xl mr-3"></i>
+            <span className="text-text-secondary">加载中...</span>
+          </div>
+        ) : filteredAchievements.length === 0 ? (
+          <div className="text-center py-12">
+            <i className="fas fa-folder-open text-4xl text-text-muted mb-4"></i>
+            <p className="text-text-muted">暂无成果</p>
+            <p className="text-sm text-text-muted mt-2">
+              {achievementSearchValue ? '尝试调整搜索条件' : '点击"成果发布"创建第一个成果'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredAchievements.map((achievement) => {
+              const statusDisplay = getStatusDisplay(achievement.status);
+              
+              return (
+                <div key={achievement.id} className="bg-bg-light rounded-xl shadow-card p-4 hover:shadow-card-hover transition-shadow">
+                  <div className="flex items-center">
+                    {/* 封面图 */}
+                    <div className="w-24 h-24 rounded-lg overflow-hidden mr-4 flex-shrink-0">
+                      {achievement.cover_url ? (
+                        <img 
+                          src={achievement.cover_url} 
+                          alt={`${achievement.title}成果封面`} 
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                        <>
-                          <button 
-                            onClick={() => handleEditAchievement(achievement.id)}
-                            className="px-3 py-1 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600"
-                          >
-                            <i className="fas fa-edit mr-1"></i>编辑
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteAchievement(achievement.id)}
-                            className="px-3 py-1 rounded-lg bg-red-100 text-red-600 text-sm font-medium hover:bg-red-200"
-                          >
-                            <i className="fas fa-trash-alt mr-1"></i>删除
-                          </button>
-                        </>
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                          <i className="fas fa-file-alt text-4xl text-gray-300"></i>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* 成果信息 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-text-primary truncate">{achievement.title}</h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusDisplay.className}`}>
+                          {statusDisplay.text}
+                        </span>
+                      </div>
+                      <p className="text-text-muted text-sm mb-2">
+                        创建时间：{new Date(achievement.created_at || '').toLocaleString()}
+                      </p>
+                      
+                      {/* 驳回原因 */}
+                      {(achievement as any).rejection_reason && (
+                        <div className="bg-red-50 border-l-4 border-red-400 p-3 rounded-r-lg mb-2">
+                          <p className="text-red-700 text-sm">
+                            <i className="fas fa-exclamation-circle mr-1"></i>
+                            驳回原因：{(achievement as any).rejection_reason}
+                          </p>
+                        </div>
                       )}
                       
-                      {achievement.status === 'rejected' && (
-                        <button 
-                          onClick={() => handleAiSolution(achievement.id)}
-                          className="px-3 py-1 rounded-lg bg-purple-100 text-purple-600 text-sm font-medium hover:bg-purple-200"
-                        >
-                          <i className="fas fa-robot mr-1"></i>AI解决方案
-                        </button>
-                      )}
+                      {/* 操作按钮 */}
+                      <div className="flex items-center space-x-2">
+                        {achievement.status === 'pending' ? (
+                          <button 
+                            onClick={() => handleWithdrawAchievement(achievement.id)}
+                            className="px-3 py-1 rounded-lg bg-yellow-100 text-yellow-800 text-sm font-medium hover:bg-yellow-200"
+                          >
+                            <i className="fas fa-undo mr-1"></i>撤回
+                          </button>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => handleEditAchievement(achievement.id)}
+                              className="px-3 py-1 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600"
+                            >
+                              <i className="fas fa-edit mr-1"></i>编辑
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteAchievement(achievement.id)}
+                              className="px-3 py-1 rounded-lg bg-red-100 text-red-600 text-sm font-medium hover:bg-red-200"
+                            >
+                              <i className="fas fa-trash-alt mr-1"></i>删除
+                            </button>
+                          </>
+                        )}
+                        
+                        {achievement.status === 'rejected' && (
+                          <button 
+                            onClick={() => handleAiSolution(achievement.id)}
+                            className="px-3 py-1 rounded-lg bg-purple-100 text-purple-600 text-sm font-medium hover:bg-purple-200"
+                          >
+                            <i className="fas fa-robot mr-1"></i>AI解决方案
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
         
         {/* AI解决方案模态框 */}
         {showAiSolutionModal && (

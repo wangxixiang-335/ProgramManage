@@ -43,7 +43,7 @@ const AchievementViewPage: React.FC = () => {
       setIsLoading(true);
       
       // 获取当前用户ID
-      const currentUserId = user?.id || '';
+      const currentUserId = String(user?.id || '');
       
       // 获取当前用户信息
       const userResult = await AchievementService.getCurrentUser(currentUserId);
@@ -51,15 +51,29 @@ const AchievementViewPage: React.FC = () => {
         setCurrentUser(userResult.data);
         console.log('👤 当前用户:', userResult.data);
         
-        // 如果是教师 (role=2)，查看所有学生成果
-        if (userResult.data.role === 2) {
-          const achievementsResult = await AchievementService.getAchievementsByRole(2); // role=2 是教师，获取所有学生成果
+        // 如果是学生 (role=1)，查看自己的成果
+        if (userResult.data.role === 1) {
+          const achievementsResult = await AchievementService.getAchievementsByUser(userResult.data.role, currentUserId);
           if (achievementsResult.success) {
             setAchievements(achievementsResult.data || []);
-            console.log('📊 学生成果加载成功:', achievementsResult.data?.length, '条');
+            console.log('📊 学生自己成果加载成功:', achievementsResult.data?.length, '条');
           } else {
             console.error('加载学生成果失败:', achievementsResult.message);
           }
+        } else if (userResult.data.role === 2) {
+          // 如果是教师 (role=2)，查看所有学生成果
+          const achievementsResult = await AchievementService.getAchievementsByRole(1); // role=1 是学生，获取所有学生成果
+          if (achievementsResult.success) {
+            setAchievements(achievementsResult.data || []);
+            console.log('📊 所有学生成果加载成功:', achievementsResult.data?.length, '条');
+          } else {
+            console.error('加载学生成果失败:', achievementsResult.message);
+          }
+        } else {
+          // 其他角色无权限
+          alert('无权限访问此页面');
+          navigate('/home');
+          return;
         }
       }
     } catch (error) {
@@ -71,9 +85,9 @@ const AchievementViewPage: React.FC = () => {
 
   // 筛选和搜索逻辑
   const filteredAchievements = achievements.filter(achievement => {
-    const matchesType = !searchFilters.type || achievement.achievement_types?.name?.includes(searchFilters.type);
+    const matchesType = !searchFilters.type || (achievement as any).achievement_types?.name?.includes(searchFilters.type);
     const matchesName = !searchFilters.name || achievement.title.toLowerCase().includes(searchFilters.name.toLowerCase());
-    const matchesStudent = !searchFilters.student || achievement.users?.username?.toLowerCase().includes(searchFilters.student.toLowerCase());
+    const matchesStudent = !searchFilters.student || (achievement as any).users?.username?.toLowerCase().includes(searchFilters.student.toLowerCase());
     return matchesType && matchesName && matchesStudent;
   });
 
@@ -120,7 +134,7 @@ const AchievementViewPage: React.FC = () => {
   // 状态样式映射
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'published':
+      case 'approved':
         return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
@@ -136,7 +150,7 @@ const AchievementViewPage: React.FC = () => {
   // 状态文本映射
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'published':
+      case 'approved':
         return '已通过';
       case 'pending':
         return '审核中';
@@ -394,17 +408,17 @@ const AchievementViewPage: React.FC = () => {
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-text-primary">
-                                  {achievement.users?.username || '未知学生'}
+                                  {(achievement as any).users?.username || '未知学生'}
                                 </p>
                                 <p className="text-xs text-text-muted">
-                                  {achievement.users?.email || ''}
+                                  {(achievement as any).users?.email || ''}
                                 </p>
                               </div>
                             </div>
                           </td>
                           <td className="py-4 px-6">
                             <span className="text-sm text-text-secondary">
-                              {achievement.achievement_types?.name || '未分类'}
+                              {(achievement as any).achievement_types?.name || '未分类'}
                             </span>
                           </td>
                           <td className="py-4 px-6">
