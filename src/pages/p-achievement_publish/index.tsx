@@ -439,17 +439,22 @@ const AchievementPublishPage: React.FC = () => {
       return;
     }
     
-    if (!formData.instructorId) {
-      alert('请选择指导老师');
-      return;
+    // 教师发布不需要选择指导教师，直接发布
+    if (user?.role === 2) { // 教师
+      handleConfirmPublish();
+    } else { // 学生
+      if (!formData.instructorId) {
+        alert('请选择指导老师');
+        return;
+      }
+      setShowSelectApproverModal(true);
     }
-    
-    setShowSelectApproverModal(true);
   };
   
   // 确认发布
   const handleConfirmPublish = async () => {
-    if (selectedApprovers.length === 0) {
+    // 教师直接发布，不需要审批人
+    if (user?.role === 1 && selectedApprovers.length === 0) { // 学生
       alert('请至少选择一位审批人');
       return;
     }
@@ -512,11 +517,13 @@ const AchievementPublishPage: React.FC = () => {
         cover_url: coverUrl,
         video_url: videoUrl,
         publisher_id: currentUserId,
-        instructor_id: formData.instructorId,
+        instructor_id: user?.role === 2 ? currentUserId : formData.instructorId, // 教师自己是指导教师
         parents_id: formData.parentsId || null
       };
       
-      const result = await AchievementService.createAchievement(achievementData);
+      // 教师直接发布，学生需要审批
+      const directPublish = user?.role === 2; // 教师直接发布
+      const result = await AchievementService.createAchievement(achievementData, directPublish);
       
       if (result.success) {
         alert('成果发布成功！');
@@ -839,43 +846,46 @@ const AchievementPublishPage: React.FC = () => {
                         ))}
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-text-secondary mb-1">指导老师</label>
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <input 
-                            type="text" 
-                            value={formData.instructors[0] || ''}
-                            readOnly
-                            className="flex-1 px-4 py-2 border border-border-light rounded-lg bg-bg-gray text-text-muted transition-all" 
-                            placeholder="请从教师列表中选择"
-                          />
-                          <button 
-                            onClick={() => setShowInstructorModal(true)}
-                            className="ml-2 px-3 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-all"
-                          >
-                            <i className="fas fa-search"></i>
-                          </button>
-                        </div>
-                        {formData.instructors.slice(1).map((instructor, index) => (
-                          <div key={index + 1} className="flex items-center">
+                    {/* 只有学生发布成果时才显示指导老师选择 */}
+                    {user?.role !== 2 && (
+                      <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">指导老师</label>
+                        <div className="space-y-2">
+                          <div className="flex items-center">
                             <input 
                               type="text" 
-                              value={instructor}
-                              onChange={(e) => handleInstructorChange(index + 1, e.target.value)}
-                              className="flex-1 px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all" 
-                              placeholder="输入指导老师姓名"
+                              value={formData.instructors[0] || ''}
+                              readOnly
+                              className="flex-1 px-4 py-2 border border-border-light rounded-lg bg-bg-gray text-text-muted transition-all" 
+                              placeholder="请从教师列表中选择"
                             />
                             <button 
-                              onClick={handleAddInstructor}
-                              className="ml-2 text-text-muted hover:text-secondary"
+                              onClick={() => setShowInstructorModal(true)}
+                              className="ml-2 px-3 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-all"
                             >
-                              <i className="fas fa-plus"></i>
+                              <i className="fas fa-search"></i>
                             </button>
                           </div>
-                        ))}
+                          {formData.instructors.slice(1).map((instructor, index) => (
+                            <div key={index + 1} className="flex items-center">
+                              <input 
+                                type="text" 
+                                value={instructor}
+                                onChange={(e) => handleInstructorChange(index + 1, e.target.value)}
+                                className="flex-1 px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all" 
+                                placeholder="输入指导老师姓名"
+                              />
+                              <button 
+                                onClick={handleAddInstructor}
+                                className="ml-2 text-text-muted hover:text-secondary"
+                              >
+                                <i className="fas fa-plus"></i>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
                 
@@ -1166,8 +1176,8 @@ const AchievementPublishPage: React.FC = () => {
         </div>
       )}
       
-      {/* 选择审批人弹窗 */}
-      {showSelectApproverModal && (
+      {/* 选择审批人弹窗 - 只有学生发布时才显示 */}
+      {showSelectApproverModal && user?.role !== 2 && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-text-primary mb-4">选择审批人</h3>
