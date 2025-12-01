@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
 interface ProjectData {
@@ -25,6 +26,7 @@ interface ProjectMember {
 
 const ProjectDetailPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [projectData, setProjectData] = useState<ProjectData>({
@@ -47,7 +49,7 @@ const ProjectDetailPage: React.FC = () => {
       position: '负责人'
     },
     {
-      name: '张同学',
+      name: user?.username || '用户',
       role: '前端开发',
       avatar: 'https://s.coze.cn/image/nMNl7GeJMbA/',
       position: '成员'

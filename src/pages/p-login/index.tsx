@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthService } from '../../lib/authService';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
 type RoleType = 'student' | 'teacher' | 'admin';
@@ -20,6 +21,7 @@ interface FormErrors {
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const emailInputRef = useRef<HTMLInputElement>(null);
   
   // 表单数据状态
@@ -168,7 +170,10 @@ const LoginPage: React.FC = () => {
           return;
         }
 
-        // 登录成功，跳转到对应的首页
+        // 登录成功，保存用户会话
+        login(result.user);
+        
+        // 跳转到对应的首页
         const homeRoute = AuthService.getRoleHomeRoute(result.user.role);
         navigate(homeRoute);
       } else {

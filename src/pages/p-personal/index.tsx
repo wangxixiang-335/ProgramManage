@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
 interface Project {
@@ -21,8 +22,9 @@ interface ConfirmModalData {
   onConfirm: () => void;
 }
 
-const MyProjectPage: React.FC = () => {
+const PersonalPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   // 状态管理
   const [globalSearchValue, setGlobalSearchValue] = useState('');
@@ -225,7 +227,7 @@ const MyProjectPage: React.FC = () => {
                 alt="用户头像" 
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="text-sm font-medium text-text-primary">张同学</span>
+              <span className="text-sm font-medium text-text-primary">{user?.username || '用户'}</span>
               <i className="fas fa-chevron-down text-xs text-text-muted"></i>
             </Link>
           </div>

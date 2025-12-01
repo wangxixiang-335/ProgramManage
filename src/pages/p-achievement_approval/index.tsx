@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AchievementService } from '../../lib/achievementService';
 import { AchievementWithUsers, AchievementStatus, ApprovalFilters, ACHIEVEMENT_TYPES } from '../../types/achievement';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
 const AchievementApprovalPage: React.FC = () => {
+  const { user } = useAuth();
   
-  // 假设当前教师ID（实际应该从登录状态或localStorage获取）
-  const currentInstructorId = '7a482e3f-93c3-467c-9f4a-7fea2084b093'; // tyj老师账号ID
+  // 获取当前教师ID
+  const currentInstructorId = user?.id || '';
   
   // 状态管理
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

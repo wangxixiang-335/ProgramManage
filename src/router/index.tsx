@@ -16,6 +16,8 @@ import P_forgot_password from '../pages/p-forgot_password';
 import P_teacher_home from '../pages/p-teacher_home';
 import P_achievement_approval from '../pages/p-achievement_approval';
 import P_achievement_publish from '../pages/p-achievement_publish';
+import P_achievement_edit from '../pages/p-achievement_edit';
+import P_achievement_detail from '../pages/p-achievement_detail';
 import P_achievement_management from '../pages/p-achievement_management';
 import P_achievement_view from '../pages/p-achievement_view';
 import P_admin_home from '../pages/p-admin_home';
@@ -177,6 +179,24 @@ const router = createBrowserRouter([
     element: (
       <ErrorBoundary>
         <P_achievement_publish />
+      </ErrorBoundary>
+    ),
+    errorElement: <ErrorPage />,
+  },
+      {
+    path: '/achievement-edit/:id',
+    element: (
+      <ErrorBoundary>
+        <P_achievement_edit />
+      </ErrorBoundary>
+    ),
+    errorElement: <ErrorPage />,
+  },
+      {
+    path: '/achievement-detail',
+    element: (
+      <ErrorBoundary>
+        <P_achievement_detail />
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,

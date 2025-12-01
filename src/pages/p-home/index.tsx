@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState<string>('');
   const [globalSearchTerm, setGlobalSearchTerm] = useState<string>('');
   const [projectSearchTerm, setProjectSearchTerm] = useState<string>('');
@@ -194,7 +196,7 @@ const HomePage: React.FC = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-text-primary mb-2">欢迎回来，张同学</h2>
+              <h2 className="text-2xl font-bold text-text-primary mb-2">欢迎回来，{user?.username || '用户'}</h2>
               <p className="text-text-secondary">这里是软院项目通，您可以查看学院项目和最新动态</p>
             </div>
             <div className="text-right">

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
 interface UserInfo {
@@ -34,15 +35,16 @@ interface Notification {
 
 const PersonalCenter: React.FC = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo>({
-    name: '张同学',
+    name: user?.username || '用户',
     studentId: '20211101001',
     major: '软件工程',
     className: '21级软件1班',
     contact: '138****8888',
-    email: 'zhang***@mail.hebtu.edu.cn',
+    email: user?.email || 'user@mail.hebtu.edu.cn',
     entryYear: '2021年',
     registerTime: '2021-09-01'
   });
@@ -173,6 +175,7 @@ const PersonalCenter: React.FC = () => {
   };
 
   const handleLogout = () => {
+    logout();
     navigate('/login');
   };
 

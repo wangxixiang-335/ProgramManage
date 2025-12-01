@@ -1,70 +1,64 @@
-
-
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { AchievementService } from '../../lib/achievementService';
+import { Achievement, User } from '../../types/achievement';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
-
-interface Achievement {
-  id: string;
-  title: string;
-  publishDate: string;
-  status: 'published' | 'pending' | 'rejected' | 'draft';
-  coverImage?: string;
-  rejectReason?: string;
-  aiSuggestion?: string;
-  category: string;
-}
 
 type FilterType = 'all' | 'published' | 'pending' | 'rejected' | 'draft';
 
 const AchievementManagement: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(user);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 设置页面标题
+  // 设置页面标题并加载数据
   useEffect(() => {
     const originalTitle = document.title;
     document.title = '软院项目通 - 成果管理';
+    
+    // 加载当前用户的成果
+    loadUserAchievements();
+    
     return () => { document.title = originalTitle; };
   }, []);
 
-  // 模拟成果数据
-  const [achievements] = useState<Achievement[]>([
-    {
-      id: '1',
-      title: '基于深度学习的图像识别系统',
-      publishDate: '2024-06-10',
-      status: 'published',
-      coverImage: 'https://s.coze.cn/image/sElnk0HE2ms/',
-      category: '科技'
-    },
-    {
-      id: '2',
-      title: '移动应用开发实践报告',
-      publishDate: '2024-06-14',
-      status: 'pending',
-      coverImage: 'https://s.coze.cn/image/mHaxVQEMBRk/',
-      category: '科技'
-    },
-    {
-      id: '3',
-      title: '数据库设计方案',
-      publishDate: '2024-06-12',
-      status: 'rejected',
-      coverImage: 'https://s.coze.cn/image/hZMXPxRlxa8/',
-      rejectReason: '数据库设计方案不够详细，缺少性能优化部分和安全机制设计。',
-      aiSuggestion: '1. 添加索引优化策略；2. 设计数据分片方案；3. 增加访问控制和数据加密机制。',
-      category: '科技'
-    },
-    {
-      id: '4',
-      title: 'Web前端开发技术总结',
-      publishDate: '2024-06-13',
-      status: 'draft',
-      category: '科技'
+  // 加载用户成果数据
+  const loadUserAchievements = async () => {
+    try {
+      setIsLoading(true);
+      
+      // 获取当前用户ID
+      const currentUserId = user?.id || '';
+      
+      // 获取当前用户信息
+      const userResult = await AchievementService.getCurrentUser(currentUserId);
+      if (userResult.success && userResult.data) {
+        setCurrentUser(userResult.data);
+        console.log('👤 当前用户:', userResult.data);
+        
+        // 获取教师自己发布的成果 (role=2)
+        if (userResult.data.role === 2) {
+          const achievementsResult = await AchievementService.getAchievementsByUser(userResult.data.role, currentUserId);
+          if (achievementsResult.success) {
+            setAchievements(achievementsResult.data || []);
+            console.log('📊 教师自己发布的成果加载成功:', achievementsResult.data?.length, '条');
+          } else {
+            console.error('加载教师成果失败:', achievementsResult.message);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('加载用户成果失败:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
   // 筛选和搜索逻辑
   const filteredAchievements = achievements.filter(achievement => {
@@ -90,7 +84,7 @@ const AchievementManagement: React.FC = () => {
 
   // 编辑成果
   const handleEditAchievement = (achievementId: string) => {
-    alert(`编辑成果 ${achievementId}`);
+    navigate(`/achievement-edit/${achievementId}`);
   };
 
   // 删除成果
@@ -100,36 +94,40 @@ const AchievementManagement: React.FC = () => {
     }
   };
 
-  // 撤回成果
-  const handleWithdrawAchievement = (achievementId: string) => {
-    if (confirm('确定要撤回该成果吗？撤回后将变为草稿状态。')) {
-      alert(`撤回成果 ${achievementId}`);
+  // 状态样式映射
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'published':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      case 'draft':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // 通知按钮
-  const handleNotificationClick = () => {
-    alert('通知功能开发中...');
-  };
-
-  // 渲染状态标签
-  const renderStatusBadge = (status: string) => {
+  // 状态文本映射
+  const getStatusText = (status: string) => {
     switch (status) {
       case 'published':
-        return <span className={`${styles.statusBadge} ${styles.statusPublished}`}>已发布</span>;
+        return '已通过';
       case 'pending':
-        return <span className={`${styles.statusBadge} ${styles.statusPending}`}>审核中</span>;
+        return '审核中';
       case 'rejected':
-        return <span className={`${styles.statusBadge} ${styles.statusRejected}`}>未通过</span>;
+        return '已拒绝';
       case 'draft':
-        return <span className={`${styles.statusBadge} ${styles.statusDraft}`}>草稿</span>;
+        return '草稿';
       default:
-        return null;
+        return '未知';
     }
   };
 
   return (
-    <div className="bg-bg-gray min-h-screen flex flex-col">
+    <div className={styles.pageWrapper}>
       <div className="flex flex-1 overflow-hidden">
         {/* 左侧导航栏 */}
         <aside 
@@ -243,22 +241,19 @@ const AchievementManagement: React.FC = () => {
               {/* 用户信息 */}
               <div className="flex items-center space-x-4">
                 <div className="relative">
-                  <button 
-                    onClick={handleNotificationClick}
-                    className="text-text-secondary hover:text-secondary"
-                  >
+                  <button className="text-text-secondary hover:text-secondary">
                     <i className="fas fa-bell text-xl"></i>
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">3</span>
                   </button>
                 </div>
                 <div className="flex items-center space-x-3">
                   <img 
-                    src="https://s.coze.cn/image/udvpYWfxP2U/" 
+                    src="https://s.coze.cn/image/Iy4-k7r4TIc/" 
                     alt="教师头像" 
                     className="w-10 h-10 rounded-full object-cover border-2 border-secondary"
                   />
                   <div className="hidden md:block">
-                    <p className="text-sm font-medium text-text-primary">张教授</p>
+                    <p className="text-sm font-medium text-text-primary">{currentUser?.username || '教师用户'}</p>
                     <p className="text-xs text-text-muted">计算机科学与技术系</p>
                   </div>
                 </div>
@@ -268,183 +263,169 @@ const AchievementManagement: React.FC = () => {
           
           {/* 内容区域 */}
           <div className="p-6">
-            {/* 筛选和搜索区域 */}
-            <div className={`bg-white rounded-xl shadow-card p-6 mb-6 ${styles.fadeIn}`}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between">
-                {/* 状态筛选 */}
-                <div className="flex flex-wrap gap-2 mb-4 md:mb-0">
-                  <button 
-                    onClick={() => handleFilterChange('all')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      activeFilter === 'all' 
-                        ? 'bg-secondary text-white' 
-                        : 'bg-bg-gray text-text-secondary hover:bg-gray-200'
-                    }`}
-                  >
-                    全部成果
-                  </button>
-                  <button 
-                    onClick={() => handleFilterChange('published')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      activeFilter === 'published' 
-                        ? 'bg-secondary text-white' 
-                        : 'bg-bg-gray text-text-secondary hover:bg-gray-200'
-                    }`}
-                  >
-                    已发布
-                  </button>
-                  <button 
-                    onClick={() => handleFilterChange('pending')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      activeFilter === 'pending' 
-                        ? 'bg-secondary text-white' 
-                        : 'bg-bg-gray text-text-secondary hover:bg-gray-200'
-                    }`}
-                  >
-                    审核中
-                  </button>
-                  <button 
-                    onClick={() => handleFilterChange('rejected')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      activeFilter === 'rejected' 
-                        ? 'bg-secondary text-white' 
-                        : 'bg-bg-gray text-text-secondary hover:bg-gray-200'
-                    }`}
-                  >
-                    未通过
-                  </button>
-                  <button 
-                    onClick={() => handleFilterChange('draft')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      activeFilter === 'draft' 
-                        ? 'bg-secondary text-white' 
-                        : 'bg-bg-gray text-text-secondary hover:bg-gray-200'
-                    }`}
-                  >
-                    草稿箱
-                  </button>
+            {/* 搜索和筛选栏 */}
+            <div className="bg-white rounded-xl shadow-card p-6 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                {/* 搜索框 */}
+                <div className="flex-1 max-w-md">
+                  <div className="relative">
+                    <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted"></i>
+                    <input
+                      type="text"
+                      placeholder="搜索成果..."
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                      className="w-full pl-10 pr-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
+                    />
+                  </div>
                 </div>
                 
-                {/* 搜索框 */}
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="按名称搜索成果..." 
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    className="w-full md:w-64 pl-10 pr-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
-                  />
-                  <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted"></i>
+                {/* 状态筛选 */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-text-secondary">状态筛选:</span>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => handleFilterChange('all')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        activeFilter === 'all' 
+                          ? 'bg-secondary text-white' 
+                          : 'text-text-secondary hover:bg-bg-gray'
+                      }`}
+                    >
+                      全部
+                    </button>
+                    <button
+                      onClick={() => handleFilterChange('published')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        activeFilter === 'published' 
+                          ? 'bg-secondary text-white' 
+                          : 'text-text-secondary hover:bg-bg-gray'
+                      }`}
+                    >
+                      已通过
+                    </button>
+                    <button
+                      onClick={() => handleFilterChange('pending')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        activeFilter === 'pending' 
+                          ? 'bg-secondary text-white' 
+                          : 'text-text-secondary hover:bg-bg-gray'
+                      }`}
+                    >
+                      审核中
+                    </button>
+                    <button
+                      onClick={() => handleFilterChange('rejected')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        activeFilter === 'rejected' 
+                          ? 'bg-secondary text-white' 
+                          : 'text-text-secondary hover:bg-bg-gray'
+                      }`}
+                    >
+                      已拒绝
+                    </button>
+                    <button
+                      onClick={() => handleFilterChange('draft')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        activeFilter === 'draft' 
+                          ? 'bg-secondary text-white' 
+                          : 'text-text-secondary hover:bg-bg-gray'
+                      }`}
+                    >
+                      草稿
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
             
             {/* 成果列表 */}
-            <div className="space-y-4">
-              {filteredAchievements.map((achievement, index) => (
-                <div 
-                  key={achievement.id}
-                  className={`bg-white rounded-xl shadow-card p-4 transition-all duration-300 ${styles.cardHover} ${styles.fadeIn}`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="flex flex-col md:flex-row">
-                    {/* 封面图 */}
-                    <div className="w-full md:w-24 h-24 md:h-auto rounded-lg overflow-hidden mb-4 md:mb-0 md:mr-4">
-                      {achievement.coverImage ? (
-                        <img 
-                          src={achievement.coverImage} 
-                          alt={`${achievement.title}封面`} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                          <i className="fas fa-file-alt text-3xl text-text-muted"></i>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* 成果信息 */}
-                    <div className="flex-1">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-text-primary">{achievement.title}</h3>
-                          <p className="text-text-muted text-sm mt-1">
-                            {achievement.status === 'draft' ? '最后编辑' : '发布时间'}：{achievement.publishDate}
-                          </p>
-                        </div>
-                        <div className="mt-2 md:mt-0">
-                          {renderStatusBadge(achievement.status)}
-                        </div>
-                      </div>
-                      
-                      {/* 驳回原因 */}
-                      {achievement.rejectReason && (
-                        <div className="mt-2 p-3 bg-red-50 rounded-lg">
-                          <p className="text-sm text-red-500">
-                            <i className="fas fa-exclamation-circle mr-1"></i> 驳回原因：{achievement.rejectReason}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* AI解决方案 */}
-                      {achievement.aiSuggestion && (
-                        <div className="mt-2 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-blue-500">
-                            <i className="fas fa-robot mr-1"></i> AI建议：{achievement.aiSuggestion}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* 操作按钮 */}
-                      <div className="flex mt-4 space-x-2">
-                        {achievement.status !== 'pending' && (
-                          <>
-                            <button 
-                              onClick={() => handleEditAchievement(achievement.id)}
-                              className="px-3 py-1 bg-primary text-secondary rounded-lg text-sm font-medium hover:bg-blue-100"
-                            >
-                              <i className="fas fa-edit mr-1"></i> 编辑
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteAchievement(achievement.id)}
-                              className="px-3 py-1 bg-red-50 text-red-500 rounded-lg text-sm font-medium hover:bg-red-100"
-                            >
-                              <i className="fas fa-trash-alt mr-1"></i> 删除
-                            </button>
-                          </>
-                        )}
-                        {achievement.status === 'pending' && (
-                          <button 
-                            onClick={() => handleWithdrawAchievement(achievement.id)}
-                            className="px-3 py-1 bg-amber-50 text-amber-500 rounded-lg text-sm font-medium hover:bg-amber-100"
-                          >
-                            <i className="fas fa-undo mr-1"></i> 撤回
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+            <div className="bg-white rounded-xl shadow-card">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <i className="fas fa-spinner fa-spin text-secondary text-2xl mr-3"></i>
+                  <span className="text-text-secondary">加载中...</span>
                 </div>
-              ))}
-            </div>
-            
-            {/* 分页 */}
-            <div className="mt-8 flex justify-center">
-              <nav className="flex items-center space-x-1">
-                <button 
-                  className="px-3 py-2 rounded-lg border border-border-light text-text-secondary hover:bg-bg-gray disabled:opacity-50 disabled:cursor-not-allowed" 
-                  disabled
-                >
-                  <i className="fas fa-chevron-left"></i>
-                </button>
-                <button className="px-4 py-2 rounded-lg bg-secondary text-white">1</button>
-                <button 
-                  className="px-3 py-2 rounded-lg border border-border-light text-text-secondary hover:bg-bg-gray disabled:opacity-50 disabled:cursor-not-allowed" 
-                  disabled
-                >
-                  <i className="fas fa-chevron-right"></i>
-                </button>
-              </nav>
+              ) : filteredAchievements.length === 0 ? (
+                <div className="text-center py-12">
+                  <i className="fas fa-folder-open text-4xl text-text-muted mb-4"></i>
+                  <p className="text-text-muted">暂无成果</p>
+                  <p className="text-sm text-text-muted mt-2">
+                    {searchTerm ? '尝试调整搜索条件' : '点击"成果发布"创建第一个成果'}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b border-border-light">
+                      <tr>
+                        <th className="text-left py-4 px-6 font-medium text-text-primary">成果</th>
+                        <th className="text-left py-4 px-6 font-medium text-text-primary">类型</th>
+                        <th className="text-left py-4 px-6 font-medium text-text-primary">发布时间</th>
+                        <th className="text-left py-4 px-6 font-medium text-text-primary">状态</th>
+                        <th className="text-center py-4 px-6 font-medium text-text-primary">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAchievements.map((achievement) => (
+                        <tr key={achievement.id} className="border-b border-border-light hover:bg-bg-gray transition-all">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center space-x-4">
+                              {achievement.cover_url && (
+                                <img 
+                                  src={achievement.cover_url} 
+                                  alt={achievement.title}
+                                  className="w-16 h-12 object-cover rounded-lg"
+                                />
+                              )}
+                              <div>
+                                <h4 className="font-medium text-text-primary line-clamp-1">{achievement.title}</h4>
+                                {achievement.description && (
+                                  <p className="text-sm text-text-muted line-clamp-1">
+                                    {achievement.description.replace(/<[^>]*>/g, '')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="text-sm text-text-secondary">
+                              {achievement.achievement_types?.name || '未分类'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="text-sm text-text-secondary">
+                              {new Date(achievement.created_at || achievement.publishDate).toLocaleDateString('zh-CN')}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusStyle(achievement.status)}`}>
+                              {getStatusText(achievement.status)}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex items-center justify-center space-x-2">
+                              <button
+                                onClick={() => handleEditAchievement(achievement.id)}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                编辑
+                              </button>
+                              <span className="text-text-muted">|</span>
+                              <button
+                                onClick={() => handleDeleteAchievement(achievement.id)}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                删除
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </main>
@@ -454,4 +435,3 @@ const AchievementManagement: React.FC = () => {
 };
 
 export default AchievementManagement;
-
