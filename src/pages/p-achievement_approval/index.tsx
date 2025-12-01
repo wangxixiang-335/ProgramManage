@@ -11,7 +11,7 @@ const AchievementApprovalPage: React.FC = () => {
   const { user } = useAuth();
   
   // 获取当前教师ID
-  const currentInstructorId = user?.id || '';
+  const currentInstructorId = String(user?.id || localStorage.getItem('userId') || '');
   
   // 状态管理
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -171,15 +171,13 @@ const AchievementApprovalPage: React.FC = () => {
     
     if (!currentAchievementId) return;
     
-    setIsLoading(true);
-    
     try {
       const result = await AchievementService.reviewAchievement({
         id: currentAchievementId,
         action: 'reject',
         reject_reason: rejectReason.trim(),
         reviewer_id: currentInstructorId
-      });
+      } as any);
       
       if (result.success) {
         alert(result.message);
@@ -197,8 +195,6 @@ const AchievementApprovalPage: React.FC = () => {
     } catch (error) {
       console.error('Reject error:', error);
       alert('驳回失败，请稍后重试');
-    } finally {
-      setIsLoading(false);
     }
   };
   
@@ -223,15 +219,13 @@ const AchievementApprovalPage: React.FC = () => {
     
     if (!currentAchievementId) return;
     
-    setIsLoading(true);
-    
     try {
       const result = await AchievementService.reviewAchievement({
         id: currentAchievementId,
         action: 'approve',
         score: scoreValue,
         reviewer_id: currentInstructorId
-      });
+      } as any);
       
       if (result.success) {
         alert(result.message);
@@ -249,8 +243,6 @@ const AchievementApprovalPage: React.FC = () => {
     } catch (error) {
       console.error('Approve error:', error);
       alert('审批失败，请稍后重试');
-    } finally {
-      setIsLoading(false);
     }
   };
   
@@ -390,13 +382,18 @@ const AchievementApprovalPage: React.FC = () => {
                 </button>
               </li>
               <li>
-                <Link 
-                  to="/login" 
-                  className={`flex items-center px-6 py-3 text-text-secondary ${styles.sidebarItemHover}`}
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    localStorage.removeItem('username');
+                    window.location.href = '/login';
+                  }}
+                  className={`flex items-center px-6 py-3 text-text-secondary ${styles.sidebarItemHover} w-full text-left`}
                 >
                   <i className="fas fa-sign-out-alt w-6 text-center"></i>
                   <span className="ml-3">退出登录</span>
-                </Link>
+                </button>
               </li>
             </ul>
           </div>
@@ -655,8 +652,8 @@ const AchievementApprovalPage: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-sm text-text-primary">
-                            <span className={getTypeStyle(achievement.type?.name || '其他')}>
-                              {achievement.type?.name || '其他'}
+                            <span className={getTypeStyle((achievement as any).type?.name || '其他')}>
+                              {(achievement as any).type?.name || '其他'}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-sm text-text-primary">
@@ -799,8 +796,8 @@ const AchievementApprovalPage: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-sm text-text-muted mb-1">成果类型</p>
-                        <span className={getTypeStyle(currentAchievement.type?.name || '其他')}>
-                          {currentAchievement.type?.name || '其他'}
+                        <span className={getTypeStyle((currentAchievement as any).type?.name || '其他')}>
+                          {(currentAchievement as any).type?.name || '其他'}
                         </span>
                       </div>
                       <div>
