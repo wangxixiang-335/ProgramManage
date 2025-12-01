@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { AchievementService } from '../../lib/achievementService';
+import { AchievementType } from '../../types/achievement';
 import styles from './styles.module.css';
 
 interface Achievement {
@@ -18,6 +20,7 @@ const AchievementLibraryManagement: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('achievements');
   const [currentPage, setCurrentPage] = useState(1);
+  const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>([]);
   
   // 搜索条件状态
   const [searchConditions, setSearchConditions] = useState({
@@ -27,6 +30,22 @@ const AchievementLibraryManagement: React.FC = () => {
     name: '',
     student: ''
   });
+
+  // 加载成果类型
+  useEffect(() => {
+    loadAchievementTypes();
+  }, []);
+  
+  const loadAchievementTypes = async () => {
+    try {
+      const result = await AchievementService.getAchievementTypes();
+      if (result.success && result.data) {
+        setAchievementTypes(result.data);
+      }
+    } catch (error) {
+      console.error('加载成果类型失败:', error);
+    }
+  };
 
   // 模拟成果数据
   const [achievements] = useState<Achievement[]>([
@@ -361,10 +380,11 @@ const AchievementLibraryManagement: React.FC = () => {
                   className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent"
                 >
                   <option value="">全部类型</option>
-                  <option value="project">项目</option>
-                  <option value="paper">论文</option>
-                  <option value="competition">竞赛</option>
-                  <option value="patent">专利</option>
+                  {achievementTypes.map(type => (
+                    <option key={type.id} value={type.name}>
+                      {type.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               

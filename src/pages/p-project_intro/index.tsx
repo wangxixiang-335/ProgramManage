@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { AchievementService } from '../../lib/achievementService';
+import { AchievementType } from '../../types/achievement';
 import styles from './styles.module.css';
 
 interface Collaborator {
@@ -41,6 +43,22 @@ const ProjectIntroPage: React.FC = () => {
     document.title = '软院项目通 - 学生端成果发布';
     return () => { document.title = originalTitle; };
   }, []);
+  
+  // 加载成果类型
+  useEffect(() => {
+    loadAchievementTypes();
+  }, []);
+  
+  const loadAchievementTypes = async () => {
+    try {
+      const result = await AchievementService.getAchievementTypes();
+      if (result.success && result.data) {
+        setAchievementTypes(result.data);
+      }
+    } catch (error) {
+      console.error('加载成果类型失败:', error);
+    }
+  };
 
   // 响应式侧边栏处理
   useEffect(() => {
@@ -66,7 +84,8 @@ const ProjectIntroPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [projectName, setProjectName] = useState('');
   const [projectLeader, setProjectLeader] = useState('');
-  const [projectType, setProjectType] = useState('course');
+  const [projectType, setProjectType] = useState('');
+  const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>([]);
   const [projectDescription, setProjectDescription] = useState('');
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [collaboratorInput, setCollaboratorInput] = useState('');
@@ -206,7 +225,7 @@ const ProjectIntroPage: React.FC = () => {
       // 重置表单
       setProjectName('');
       setProjectLeader('');
-      setProjectType('course');
+      setProjectType('');
       setProjectDescription('');
       setCollaborators([]);
       setPhotos([]);
@@ -444,8 +463,12 @@ const ProjectIntroPage: React.FC = () => {
                     onChange={(e) => setProjectType(e.target.value)}
                     className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus}`}
                   >
-                    <option value="course">课程项目</option>
-                    <option value="research">科研项目</option>
+                    <option value="">请选择项目类型</option>
+                    {achievementTypes.map(type => (
+                      <option key={type.id} value={type.name}>
+                        {type.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -674,7 +697,7 @@ const ProjectIntroPage: React.FC = () => {
                 <div className="mb-6 text-center">
                   <h1 className="text-3xl font-bold text-text-primary mb-2">{projectName || '未命名项目'}</h1>
                   <div className="flex justify-center items-center space-x-4 text-sm text-text-muted">
-                    <span>{projectType === 'course' ? '课程项目' : '科研项目'}</span>
+                    <span>{projectType || '未分类'}</span>
                     <span>•</span>
                     <span>负责人：{projectLeader || '未指定负责人'}</span>
                   </div>

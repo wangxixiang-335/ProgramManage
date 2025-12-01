@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AchievementService } from '../../lib/achievementService';
-import { AchievementWithUsers, AchievementStatus, ApprovalFilters, ACHIEVEMENT_TYPES } from '../../types/achievement';
+import { AchievementWithUsers, AchievementStatus, ApprovalFilters, AchievementType } from '../../types/achievement';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
@@ -29,6 +29,7 @@ const AchievementApprovalPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
+  const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>([]);
   
   // 搜索条件状态
   const [classFilter, setClassFilter] = useState('');
@@ -37,10 +38,27 @@ const AchievementApprovalPage: React.FC = () => {
   const [studentFilter, setStudentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<AchievementStatus>('pending');
   
+  // 加载初始数据
+  useEffect(() => {
+    loadAchievementTypes();
+  }, []);
+  
   // 加载成果数据
   useEffect(() => {
     loadAchievements();
   }, [currentPage, statusFilter]);
+  
+  // 加载成果类型
+  const loadAchievementTypes = async () => {
+    try {
+      const result = await AchievementService.getAchievementTypes();
+      if (result.success && result.data) {
+        setAchievementTypes(result.data);
+      }
+    } catch (error) {
+      console.error('加载成果类型失败:', error);
+    }
+  };
   
   const loadAchievements = async () => {
     setIsLoading(true);
@@ -474,7 +492,7 @@ const AchievementApprovalPage: React.FC = () => {
                     className="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary"
                   >
                     <option value="">全部类型</option>
-                    {ACHIEVEMENT_TYPES.map(type => (
+                    {achievementTypes.map(type => (
                       <option key={type.id} value={type.id}>
                         {type.name}
                       </option>
