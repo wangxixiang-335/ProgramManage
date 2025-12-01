@@ -14,7 +14,7 @@ const AchievementManagement: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(user);
+  const [currentUser, setCurrentUser] = useState<User | null>(user || null);
   const [isLoading, setIsLoading] = useState(true);
 
   // 设置页面标题并加载数据
@@ -34,7 +34,7 @@ const AchievementManagement: React.FC = () => {
       setIsLoading(true);
       
       // 获取当前用户ID
-      const currentUserId = user?.id || '';
+      const currentUserId = String(user?.id || '');
       
       // 获取当前用户信息
       const userResult = await AchievementService.getCurrentUser(currentUserId);
@@ -88,16 +88,29 @@ const AchievementManagement: React.FC = () => {
   };
 
   // 删除成果
-  const handleDeleteAchievement = (achievementId: string) => {
+  const handleDeleteAchievement = async (achievementId: string) => {
     if (confirm('确定要删除该成果吗？此操作不可恢复。')) {
-      alert(`删除成果 ${achievementId}`);
+      try {
+        const result = await AchievementService.deleteAchievement(achievementId);
+        
+        if (result.success) {
+          setAchievements(prev => prev.filter(achievement => achievement.id !== achievementId));
+          console.log('删除成功');
+        } else {
+          console.error('删除失败:', result.message);
+          alert('删除失败: ' + result.message);
+        }
+      } catch (error) {
+        console.error('删除过程中出错:', error);
+        alert('删除过程中出错');
+      }
     }
   };
 
   // 状态样式映射
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'published':
+      case 'approved':
         return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
@@ -113,7 +126,7 @@ const AchievementManagement: React.FC = () => {
   // 状态文本映射
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'published':
+      case 'approved':
         return '已通过';
       case 'pending':
         return '审核中';
@@ -390,12 +403,12 @@ const AchievementManagement: React.FC = () => {
                           </td>
                           <td className="py-4 px-6">
                             <span className="text-sm text-text-secondary">
-                              {achievement.achievement_types?.name || '未分类'}
+                              {(achievement as any).achievement_types?.name || '未分类'}
                             </span>
                           </td>
                           <td className="py-4 px-6">
                             <span className="text-sm text-text-secondary">
-                              {new Date(achievement.created_at || achievement.publishDate).toLocaleDateString('zh-CN')}
+                              {new Date(achievement.created_at || '').toLocaleDateString('zh-CN')}
                             </span>
                           </td>
                           <td className="py-4 px-6">
