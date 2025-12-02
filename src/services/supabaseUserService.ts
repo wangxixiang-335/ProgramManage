@@ -305,6 +305,98 @@ export const getUserIconClass = (role: number): string => {
   }
 };
 
+// 创建班级
+export const createClass = async (className: string, gradeId: string, instructorId?: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('classes')
+      .insert({
+        name: className,
+        grade_id: gradeId,
+        instructor_id: instructorId || null
+      });
+
+    if (error) {
+      console.error('创建班级失败:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('创建班级异常:', error);
+    throw error;
+  }
+};
+
+// 添加用户
+export const addUser = async (userData: {
+  username: string;
+  full_name: string;
+  email: string;
+  password: string;
+  role: number;
+  class_id?: string;
+}): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .insert({
+        username: userData.username,
+        full_name: userData.full_name,
+        email: userData.email,
+        password_hash: userData.password,
+        role: userData.role,
+        class_id: userData.class_id || null
+      });
+
+    if (error) {
+      console.error('添加用户失败:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('添加用户异常:', error);
+    throw error;
+  }
+};
+
+// 搜索用户
+export const searchUsers = async (keyword?: string, role?: number, classId?: string): Promise<User[]> => {
+  try {
+    let query = supabase
+      .from('users')
+      .select('*');
+
+    // 关键词搜索
+    if (keyword && keyword.trim()) {
+      query = query.or(`username.ilike.%${keyword}%,full_name.ilike.%${keyword}%,email.ilike.%${keyword}%`);
+    }
+
+    // 角色筛选
+    if (role !== undefined) {
+      query = query.eq('role', role);
+    }
+
+    // 班级筛选
+    if (classId !== undefined) {
+      query = query.eq('class_id', classId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('搜索用户失败:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('搜索用户异常:', error);
+    throw error;
+  }
+};
+
 // 切换教师班级
 export const switchTeacherClass = async (teacherId: string, newClassId: string): Promise<boolean> => {
   try {
