@@ -5,7 +5,7 @@ import { Achievement, User } from '../../types/achievement';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
-type FilterType = 'all' | 'published' | 'pending' | 'rejected' | 'draft';
+type FilterType = 'all' | 'approved' | 'draft';
 
 const AchievementManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ const AchievementManagement: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(user || null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // 设置页面标题并加载数据
@@ -112,10 +112,6 @@ const AchievementManagement: React.FC = () => {
     switch (status) {
       case 'approved':
         return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
       case 'draft':
         return 'bg-gray-100 text-gray-800';
       default:
@@ -127,11 +123,7 @@ const AchievementManagement: React.FC = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'approved':
-        return '已通过';
-      case 'pending':
-        return '审核中';
-      case 'rejected':
-        return '已拒绝';
+        return '已发布';
       case 'draft':
         return '草稿';
       default:
@@ -216,12 +208,6 @@ const AchievementManagement: React.FC = () => {
           {/* 底部导航 */}
           <div className="mt-auto p-4 border-t border-border-light">
             <ul>
-              <li>
-                <button className={`flex items-center px-6 py-3 text-text-secondary ${styles.sidebarItemHover} w-full text-left`}>
-                  <i className="fas fa-user-cog w-6 text-center"></i>
-                  <span className="ml-3">设置</span>
-                </button>
-              </li>
               <li>
                 <Link 
                   to="/login" 
@@ -308,34 +294,14 @@ const AchievementManagement: React.FC = () => {
                       全部
                     </button>
                     <button
-                      onClick={() => handleFilterChange('published')}
+                      onClick={() => handleFilterChange('approved')}
                       className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                        activeFilter === 'published' 
+                        activeFilter === 'approved' 
                           ? 'bg-secondary text-white' 
                           : 'text-text-secondary hover:bg-bg-gray'
                       }`}
                     >
-                      已通过
-                    </button>
-                    <button
-                      onClick={() => handleFilterChange('pending')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                        activeFilter === 'pending' 
-                          ? 'bg-secondary text-white' 
-                          : 'text-text-secondary hover:bg-bg-gray'
-                      }`}
-                    >
-                      审核中
-                    </button>
-                    <button
-                      onClick={() => handleFilterChange('rejected')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                        activeFilter === 'rejected' 
-                          ? 'bg-secondary text-white' 
-                          : 'text-text-secondary hover:bg-bg-gray'
-                      }`}
-                    >
-                      已拒绝
+                      已发布
                     </button>
                     <button
                       onClick={() => handleFilterChange('draft')}

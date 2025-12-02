@@ -258,12 +258,6 @@ const AchievementViewPage: React.FC = () => {
           <div className="mt-auto p-4 border-t border-border-light">
             <ul>
               <li>
-                <button className={`flex items-center px-6 py-3 text-text-secondary ${styles.sidebarItemHover} w-full text-left`}>
-                  <i className="fas fa-user-cog w-6 text-center"></i>
-                  <span className="ml-3">设置</span>
-                </button>
-              </li>
-              <li>
                 <Link 
                   to="/login" 
                   className={`flex items-center px-6 py-3 text-text-secondary ${styles.sidebarItemHover}`}
@@ -389,68 +383,58 @@ const AchievementViewPage: React.FC = () => {
                   <table className="w-full">
                     <thead className="border-b border-border-light">
                       <tr>
-                        <th className="text-left py-4 px-6 font-medium text-text-primary">成果信息</th>
-                        <th className="text-left py-4 px-6 font-medium text-text-primary">学生</th>
-                        <th className="text-left py-4 px-6 font-medium text-text-primary">类型</th>
-                        <th className="text-left py-4 px-6 font-medium text-text-primary">提交时间</th>
-                        <th className="text-left py-4 px-6 font-medium text-text-primary">状态</th>
-                        <th className="text-center py-4 px-6 font-medium text-text-primary">操作</th>
+                        <th className="text-left py-4 px-4 font-medium text-text-primary w-2/12">成果信息</th>
+                        <th className="text-left py-4 px-4 font-medium text-text-primary w-2/12">学生</th>
+                        <th className="text-left py-4 px-4 font-medium text-text-primary w-2/12">类型</th>
+                        <th className="text-left py-4 px-4 font-medium text-text-primary w-2/12">提交时间</th>
+                        <th className="text-left py-4 px-4 font-medium text-text-primary w-2/12">状态</th>
+                        <th className="text-center py-4 px-4 font-medium text-text-primary w-2/12">操作</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredAchievements.map((achievement) => (
                         <tr key={achievement.id} className="border-b border-border-light hover:bg-bg-gray transition-all">
-                          <td className="py-4 px-6">
-                            <div className="flex items-center space-x-4">
+                          <td className="py-4 px-4 w-2/12">
+                            <div className="flex items-center space-x-3">
                               {achievement.cover_url && (
                                 <img 
                                   src={achievement.cover_url} 
                                   alt={achievement.title}
-                                  className="w-16 h-12 object-cover rounded-lg"
+                                  className="w-12 h-10 object-cover rounded-lg"
                                 />
                               )}
-                              <div>
-                                <h4 className="font-medium text-text-primary line-clamp-1">{achievement.title}</h4>
-                                {achievement.description && (
-                                  <p className="text-sm text-text-muted line-clamp-1">
-                                    {achievement.description.replace(/<[^>]*>/g, '')}
-                                  </p>
-                                )}
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-medium text-text-primary text-sm truncate">{achievement.title}</h4>
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-8 h-8 bg-bg-gray rounded-full flex items-center justify-center">
-                                <i className="fas fa-user text-text-muted text-sm"></i>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-text-primary">
-                                  {(achievement as any).users?.username || '未知学生'}
-                                </p>
-                                <p className="text-xs text-text-muted">
-                                  {(achievement as any).users?.email || ''}
-                                </p>
-                              </div>
+                          <td className="py-4 px-4 w-2/12">
+                            <div>
+                              <p className="text-sm font-medium text-text-primary truncate">
+                                {(achievement as any).users?.username || '未知学生'}
+                              </p>
+                              <p className="text-xs text-text-muted truncate">
+                                {(achievement as any).users?.email || ''}
+                              </p>
                             </div>
                           </td>
-                          <td className="py-4 px-6">
-                            <span className="text-sm text-text-secondary">
+                          <td className="py-4 px-4 w-2/12">
+                            <span className="text-sm text-text-secondary truncate block">
                               {(achievement as any).achievement_types?.name || '未分类'}
                             </span>
                           </td>
-                          <td className="py-4 px-6">
-                            <span className="text-sm text-text-secondary">
+                          <td className="py-4 px-4 w-2/12">
+                            <span className="text-sm text-text-secondary truncate block">
                               {new Date(achievement.created_at).toLocaleDateString('zh-CN')}
                             </span>
                           </td>
-                          <td className="py-4 px-6">
+                          <td className="py-4 px-4 w-2/12">
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusStyle(achievement.status)}`}>
                               {getStatusText(achievement.status)}
                             </span>
                           </td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center justify-center space-x-2">
+                          <td className="py-4 px-4 w-2/12">
+                            <div className="flex items-center justify-center">
                               <button 
                                 onClick={() => handleViewDetail(achievement.id)}
                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
