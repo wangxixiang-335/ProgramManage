@@ -68,6 +68,29 @@ export class AchievementService {
     }
   }
 
+  // 获取所有用户（排除role=3的用户），包含full_name字段
+  static async getUsersForCollaborators(): Promise<{ success: boolean; data?: User[]; message?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, email, full_name, role, created_at')
+        .neq('role', 3) // 排除role=3的用户
+        .order('full_name');
+
+      if (error) {
+        const errorMessage = typeof error === 'object' && error !== null && 'message' in error 
+          ? (error as { message: string }).message 
+          : String(error);
+        throw new Error(errorMessage);
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error fetching users for collaborators:', error);
+      return { success: false, message: error instanceof Error ? error.message : '获取协作用户列表失败' };
+    }
+  }
+
   // 获取所有学生（role=2，除了当前用户）
   static async getStudentsExceptCurrent(currentUserId: string): Promise<{ success: boolean; data?: User[]; message?: string }> {
     try {

@@ -48,6 +48,7 @@ const ProjectIntroPage: React.FC = () => {
   useEffect(() => {
     loadAchievementTypes();
     loadInstructors();
+    loadCollaboratorUsers();
   }, []);
   
   const loadAchievementTypes = async () => {
@@ -73,6 +74,17 @@ const ProjectIntroPage: React.FC = () => {
       }
     } catch (error) {
       console.error('加载教师列表失败:', error);
+    }
+  };
+
+  const loadCollaboratorUsers = async () => {
+    try {
+      const result = await AchievementService.getUsersForCollaborators(); // 获取所有用户（排除role=3）
+      if (result.success && result.data) {
+        setCollaboratorUsers(result.data);
+      }
+    } catch (error) {
+      console.error('加载协作用户列表失败:', error);
     }
   };
 
@@ -105,6 +117,8 @@ const ProjectIntroPage: React.FC = () => {
   const [projectDescription, setProjectDescription] = useState('');
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [collaboratorInput, setCollaboratorInput] = useState('');
+  const [collaboratorUsers, setCollaboratorUsers] = useState<User[]>([]);
+  const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -133,16 +147,18 @@ const ProjectIntroPage: React.FC = () => {
     }
   };
 
-  // 添加协作者
+  // 添加协作者（下拉选择方式）
   const addCollaborator = () => {
-    const name = collaboratorInput.trim();
-    if (name) {
-      const newCollaborator: Collaborator = {
-        id: Date.now().toString(),
-        name
-      };
-      setCollaborators([...collaborators, newCollaborator]);
-      setCollaboratorInput('');
+    if (selectedCollaboratorId) {
+      const selectedUser = collaboratorUsers.find(user => user.id === selectedCollaboratorId);
+      if (selectedUser && !collaborators.find(c => c.id === selectedUser.id)) {
+        const newCollaborator: Collaborator = {
+          id: selectedUser.id,
+          name: selectedUser.full_name || selectedUser.username
+        };
+        setCollaborators([...collaborators, newCollaborator]);
+        setSelectedCollaboratorId(''); // 清空选择
+      }
     }
   };
 
@@ -687,17 +703,22 @@ const ProjectIntroPage: React.FC = () => {
               <div className="mb-8">
                 <label className="block text-sm font-medium text-text-secondary mb-2">协作者</label>
                 <div className="flex space-x-2">
-                  <input 
-                    type="text" 
-                    value={collaboratorInput}
-                    onChange={(e) => setCollaboratorInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addCollaborator()}
+                  <select 
+                    value={selectedCollaboratorId}
+                    onChange={(e) => setSelectedCollaboratorId(e.target.value)}
                     className={`flex-1 px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus}`}
-                    placeholder="输入协作者姓名"
-                  />
+                  >
+                    <option value="">请选择协作者</option>
+                    {collaboratorUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.username} ({user.email})
+                      </option>
+                    ))}
+                  </select>
                   <button 
                     onClick={addCollaborator}
                     className="px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                    disabled={!selectedCollaboratorId}
                   >
                     <i className="fas fa-plus"></i>
                   </button>
