@@ -719,7 +719,7 @@ const NewsManagement: React.FC = () => {
                     id="category-select"
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="w-full md:w-40 px-3 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                    className={`w-full md:w-40 px-3 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 ${styles.customSelect}`}
                   >
                     <option value="">全部栏目</option>
                     {newsCategories.map(category => (
@@ -737,7 +737,7 @@ const NewsManagement: React.FC = () => {
                     id="type-select"
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
-                    className="w-full md:w-40 px-3 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                    className={`w-full md:w-40 px-3 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 ${styles.customSelect}`}
                   >
                     <option value="">全部类型</option>
                     <option value="important">重要</option>
@@ -752,7 +752,7 @@ const NewsManagement: React.FC = () => {
                     id="date-select"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-full md:w-40 px-3 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                    className={`w-full md:w-40 px-3 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 ${styles.customSelect}`}
                   >
                     <option value="">全部日期</option>
                     <option value="today">今天</option>

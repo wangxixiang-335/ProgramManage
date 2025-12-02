@@ -466,7 +466,7 @@ const AchievementApprovalPage: React.FC = () => {
                     id="class-select"
                     value={classFilter}
                     onChange={(e) => setClassFilter(e.target.value)}
-                    className="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary"
+                    className={`w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary ${styles.customSelect}`}
                   >
                     <option value="">全部班级</option>
                     <option value="class1">软件工程1班</option>
@@ -483,7 +483,7 @@ const AchievementApprovalPage: React.FC = () => {
                     id="type-select"
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
-                    className="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary"
+                    className={`w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary ${styles.customSelect}`}
                   >
                     <option value="">全部类型</option>
                     {achievementTypes.map(type => (
@@ -529,7 +529,7 @@ const AchievementApprovalPage: React.FC = () => {
                     id="status-select"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as AchievementStatus)}
-                    className="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary"
+                    className={`w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary ${styles.customSelect}`}
                   >
                     <option value="pending">待审核</option>
                     <option value="approved">已通过</option>

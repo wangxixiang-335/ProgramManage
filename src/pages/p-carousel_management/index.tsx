@@ -486,7 +486,7 @@ const CarouselManagement: React.FC = () => {
               <select 
                 value={statusFilter === undefined ? 'all' : statusFilter.toString()}
                 onChange={(e) => setStatusFilter(e.target.value === 'all' ? undefined : e.target.value === 'true')}
-                className="px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600"
+                className={`px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600 ${styles.customSelect}`}
               >
                 <option value="all">全部状态</option>
                 <option value="true">启用</option>

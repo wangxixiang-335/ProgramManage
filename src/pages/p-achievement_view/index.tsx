@@ -399,7 +399,7 @@ const AchievementViewPage: React.FC = () => {
                     <select
                       value={searchFilters.type}
                       onChange={(e) => setSearchFilters({...searchFilters, type: e.target.value})}
-                      className="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
+                      className={`w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all ${styles.customSelect}`}
                     >
                       <option value="">全部类型</option>
                       {achievementTypes.map(type => (

@@ -687,7 +687,7 @@ const ProjectIntroPage: React.FC = () => {
                     id="project-type"
                     value={projectType}
                     onChange={(e) => setProjectType(e.target.value)}
-                    className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus}`}
+                    className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus} ${styles.customSelect}`}
                   >
                     <option value="">请选择项目类型</option>
                     {achievementTypes.map(type => (
@@ -706,7 +706,7 @@ const ProjectIntroPage: React.FC = () => {
                   <select 
                     value={selectedCollaboratorId}
                     onChange={(e) => setSelectedCollaboratorId(e.target.value)}
-                    className={`flex-1 px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus}`}
+                    className={`flex-1 px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus} ${styles.customSelect}`}
                   >
                     <option value="">请选择协作者</option>
                     {collaboratorUsers.map(user => (
@@ -734,7 +734,7 @@ const ProjectIntroPage: React.FC = () => {
                 <select 
                   value={selectedInstructorId}
                   onChange={(e) => setSelectedInstructorId(e.target.value)}
-                  className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus}`}
+                  className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus} ${styles.customSelect}`}
                 >
                   <option value="">请选择指导老师</option>
                   {instructors.map(instructor => (

@@ -755,7 +755,7 @@ const AchievementPublishPage: React.FC = () => {
                           id="achievement-type"
                           value={formData.typeId}
                           onChange={(e) => handleTypeChange(e.target.value)}
-                          className="w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
+                          className={`w-full px-4 py-2 border border-border-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all ${styles.customSelect}`}
                         >
                           <option value="">请选择成果类型</option>
                           {achievementTypes.map(type => (

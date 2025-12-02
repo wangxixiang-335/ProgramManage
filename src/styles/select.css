@@ -1,0 +1,85 @@
+/* 
+ * 统一的单箭头下拉框样式
+ * 适用于所有管理员页面
+ */
+
+/* 基础单箭头样式 */
+.customSelect {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* 聚焦状态 - 绿色主题 */
+.customSelect:focus {
+  outline: none;
+  border-color: #2E7D32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+/* 聚焦状态 - 亮绿色主题（user-management用） */
+.customSelect.userFocus:focus {
+  border-color: #22C55E;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+/* 聚焦状态 - 二级绿色主题（achievement相关用） */
+.customSelect.secondaryFocus:focus {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* 禁用状态 */
+.customSelect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+
+/* 悬停状态 */
+.customSelect:hover:not(:disabled) {
+  border-color: #374151;
+}
+
+/* 深色主题变体 */
+.customSelect.dark {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  color: white;
+}
+
+/* 小尺寸变体 */
+.customSelect.sm {
+  padding-right: 2rem;
+  background-size: 1em 1em;
+}
+
+/* 大尺寸变体 */
+.customSelect.lg {
+  padding-right: 3rem;
+  background-size: 2em 2em;
+}
+
+/* 确保所有下拉框都应用单箭头样式 */
+select.customSelect,
+select.customSelect.sm,
+select.customSelect.lg,
+select.customSelect.dark,
+select.customSelect.userFocus,
+select.customSelect.secondaryFocus {
+  /* 移除默认的双箭头 */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  /* 防止在不同浏览器中显示默认箭头 */
+  &::-ms-expand {
+    display: none;
+  }
+  
+  &::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+}

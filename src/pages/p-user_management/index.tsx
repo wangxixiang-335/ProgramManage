@@ -810,7 +810,7 @@ const UserManagement: React.FC = () => {
               </div>
               <div className="flex gap-3">
                 <select 
-                  className="px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600"
+                  className={`px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600 ${styles.customSelect}`}
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
                 >
@@ -820,7 +820,7 @@ const UserManagement: React.FC = () => {
                   <option value="1">学生</option>
                 </select>
                 <select 
-                  className="px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600"
+                  className={`px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600 ${styles.customSelect}`}
                   value={classFilter}
                   onChange={(e) => setClassFilter(e.target.value)}
                 >
@@ -1123,7 +1123,7 @@ const UserManagement: React.FC = () => {
                   <select 
                     value={selectedNewClassId}
                     onChange={(e) => setSelectedNewClassId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 ${styles.customSelect}`}
                   >
                     <option value="">请选择班级</option>
                     <option value="">无班级</option>
@@ -1193,7 +1193,7 @@ const UserManagement: React.FC = () => {
                   <select 
                     value={selectedTeacherNewClassId}
                     onChange={(e) => setSelectedTeacherNewClassId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 ${styles.customSelect}`}
                   >
                     <option value="">请选择班级</option>
                     <option value="">无班级</option>
@@ -1261,7 +1261,7 @@ const UserManagement: React.FC = () => {
                 <select 
                   value={selectedGradeForClass}
                   onChange={(e) => setSelectedGradeForClass(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 ${styles.customSelect}`}
                 >
                   <option value="">请选择年级</option>
                   {gradesForCreateClass.map(grade => (
@@ -1279,7 +1279,7 @@ const UserManagement: React.FC = () => {
                 <select 
                   value={selectedInstructorForClass}
                   onChange={(e) => setSelectedInstructorForClass(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 ${styles.customSelect}`}
                 >
                   <option value="">请选择指导教师</option>
                   {teachersForInstructor.map(teacher => (
