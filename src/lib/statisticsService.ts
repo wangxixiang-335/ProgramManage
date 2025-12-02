@@ -234,6 +234,68 @@ export class StatisticsService {
     }
   }
 
+  // 获取教师看板统计数据
+  static async getTeacherDashboardStats(teacherId: string): Promise<{
+    pendingCount: number;     // 待审批成果数量
+    publishedCount: number;    // 已发布成果数量
+    studentCount: number;      // 指导学生数量
+    projectCount: number;      // 负责项目数量
+  }> {
+    try {
+      // 获取待审批成果数量（使用与成果审批页面相同的逻辑）
+      const { data: pendingAchievements, error: pendingError } = await supabase
+        .from('achievements')
+        .select('id')
+        .eq('status', 'pending');
+
+      if (pendingError) throw pendingError;
+      const pendingCount = pendingAchievements?.length || 0;
+
+      // 获取已发布成果数量
+      const { data: publishedAchievements, error: publishedError } = await supabase
+        .from('achievements')
+        .select('id')
+        .eq('status', 'approved');
+
+      if (publishedError) throw publishedError;
+      const publishedCount = publishedAchievements?.length || 0;
+
+      // 获取指导学生数量
+      const { data: students, error: studentsError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 1); // 学生角色
+
+      if (studentsError) throw studentsError;
+      const studentCount = students?.length || 0;
+
+      // 获取负责项目数量
+      const { data: projects, error: projectsError } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('user_id', teacherId)
+        .eq('role', 'teacher'); // 教师角色
+
+      if (projectsError) throw projectsError;
+      const projectCount = projects?.length || 0;
+
+      return {
+        pendingCount,
+        publishedCount,
+        studentCount,
+        projectCount
+      };
+    } catch (error) {
+      console.error('获取教师看板统计数据失败:', error);
+      return {
+        pendingCount: 0,
+        publishedCount: 0,
+        studentCount: 0,
+        projectCount: 0
+      };
+    }
+  }
+
   // 获取教师指导学生的发布统计
   static async getTeacherStudentStats(teacherId: string) {
     try {

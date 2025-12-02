@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StatisticsService } from '../../lib/statisticsService';
+import { getCurrentUser } from '../../lib/userUtils';
 import styles from './styles.module.css';
 
 // 声明Chart.js的全局类型
@@ -19,6 +20,12 @@ const TeacherHomePage: React.FC = () => {
   const [activeViewType, setActiveViewType] = useState('monthly');
   const [currentDate, setCurrentDate] = useState('');
   const [isRefreshingTypes, setIsRefreshingTypes] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState({
+    pendingCount: 0,
+    publishedCount: 0,
+    studentCount: 0,
+    projectCount: 0
+  });
   
   const publicationChartRef = useRef<any>(null);
   const resultTypesChartRef = useRef<any>(null);
@@ -39,6 +46,23 @@ const TeacherHomePage: React.FC = () => {
     const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
     const formattedDate = now.toLocaleDateString('zh-CN', options) + '，' + weekdays[now.getDay()];
     setCurrentDate(formattedDate);
+  }, []);
+
+  // 获取仪表板统计数据
+  useEffect(() => {
+    const loadDashboardStats = async () => {
+      try {
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+          const stats = await StatisticsService.getTeacherDashboardStats(currentUser.id);
+          setDashboardStats(stats);
+        }
+      } catch (error) {
+        console.error('获取仪表板统计数据失败:', error);
+      }
+    };
+
+    loadDashboardStats();
   }, []);
 
   // 初始化图表
@@ -417,9 +441,9 @@ const TeacherHomePage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-text-muted text-sm">待审批成果</p>
-                    <h3 className="text-3xl font-bold text-text-primary mt-2">12</h3>
+                    <h3 className="text-3xl font-bold text-text-primary mt-2">{dashboardStats.pendingCount}</h3>
                     <p className="text-green-500 text-xs mt-1 flex items-center">
-                      <i className="fas fa-arrow-up mr-1"></i> 较上周增长 20%
+                      <i className="fas fa-clock mr-1"></i> 待处理
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-secondary">
@@ -433,9 +457,9 @@ const TeacherHomePage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-text-muted text-sm">已发布成果</p>
-                    <h3 className="text-3xl font-bold text-text-primary mt-2">86</h3>
+                    <h3 className="text-3xl font-bold text-text-primary mt-2">{dashboardStats.publishedCount}</h3>
                     <p className="text-green-500 text-xs mt-1 flex items-center">
-                      <i className="fas fa-arrow-up mr-1"></i> 较上月增长 15%
+                      <i className="fas fa-check mr-1"></i> 已通过
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-500">
@@ -449,8 +473,8 @@ const TeacherHomePage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-text-muted text-sm">指导学生</p>
-                    <h3 className="text-3xl font-bold text-text-primary mt-2">45</h3>
-                    <p className="text-text-muted text-xs mt-1">本学期</p>
+                    <h3 className="text-3xl font-bold text-text-primary mt-2">{dashboardStats.studentCount}</h3>
+                    <p className="text-text-muted text-xs mt-1">总人数</p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
                     <i className="fas fa-users text-xl"></i>
@@ -463,8 +487,8 @@ const TeacherHomePage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-text-muted text-sm">负责项目</p>
-                    <h3 className="text-3xl font-bold text-text-primary mt-2">8</h3>
-                    <p className="text-text-muted text-xs mt-1">当前进行中</p>
+                    <h3 className="text-3xl font-bold text-text-primary mt-2">{dashboardStats.projectCount}</h3>
+                    <p className="text-text-muted text-xs mt-1">参与项目</p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-500">
                     <i className="fas fa-project-diagram text-xl"></i>
