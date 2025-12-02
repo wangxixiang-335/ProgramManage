@@ -22,6 +22,11 @@ const AchievementViewPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>([]);
   
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  
   // 模态框状态
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [currentAchievement, setCurrentAchievement] = useState<AchievementWithUsers | null>(null);
@@ -37,6 +42,17 @@ const AchievementViewPage: React.FC = () => {
     
     return () => { document.title = originalTitle; };
   }, []);
+
+  // 监听筛选条件变化，重新计算分页
+  useEffect(() => {
+    const filteredCount = filteredAchievements.length;
+    const newTotalPages = Math.ceil(filteredCount / itemsPerPage);
+    setTotalPages(newTotalPages);
+    // 如果当前页超过了新的总页数，重置到第一页
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [searchFilters, achievements, itemsPerPage]);
   
   // 加载初始数据
   const loadInitialData = async () => {
@@ -72,8 +88,13 @@ const AchievementViewPage: React.FC = () => {
         if (userResult.data.role === 1) {
           const achievementsResult = await AchievementService.getAchievementsByUser(userResult.data.role, currentUserId);
           if (achievementsResult.success) {
-            setAchievements(achievementsResult.data || []);
-            console.log('📊 学生自己成果加载成功:', achievementsResult.data?.length, '条');
+            const allAchievements = achievementsResult.data || [];
+            setAchievements(allAchievements);
+            // 计算总页数
+            setTotalPages(Math.ceil(allAchievements.length / itemsPerPage));
+            // 重置到第一页
+            setCurrentPage(1);
+            console.log('📊 学生自己成果加载成功:', allAchievements.length, '条');
           } else {
             console.error('加载学生成果失败:', achievementsResult.message);
           }
@@ -81,8 +102,13 @@ const AchievementViewPage: React.FC = () => {
           // 如果是教师 (role=2)，查看所有学生成果
           const achievementsResult = await AchievementService.getAchievementsByRole(2); // role=2 是教师，获取所有学生成果
           if (achievementsResult.success) {
-            setAchievements(achievementsResult.data || []);
-            console.log('📊 所有学生成果加载成功:', achievementsResult.data?.length, '条');
+            const allAchievements = achievementsResult.data || [];
+            setAchievements(allAchievements);
+            // 计算总页数
+            setTotalPages(Math.ceil(allAchievements.length / itemsPerPage));
+            // 重置到第一页
+            setCurrentPage(1);
+            console.log('📊 所有学生成果加载成功:', allAchievements.length, '条');
           } else {
             console.error('加载学生成果失败:', achievementsResult.message);
           }
@@ -107,6 +133,30 @@ const AchievementViewPage: React.FC = () => {
     const matchesStudent = !searchFilters.student || (achievement as any).users?.username?.toLowerCase().includes(searchFilters.student.toLowerCase());
     return matchesType && matchesName && matchesStudent;
   });
+
+  // 分页逻辑
+  const getPaginatedAchievements = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAchievements.slice(startIndex, endIndex);
+  };
+
+  // 分页控制函数
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -392,7 +442,7 @@ const AchievementViewPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredAchievements.map((achievement) => (
+                      {getPaginatedAchievements().map((achievement) => (
                         <tr key={achievement.id} className="border-b border-border-light hover:bg-bg-gray transition-all">
                           <td className="py-4 px-4 w-2/12">
                             <div className="flex items-center space-x-3">
@@ -411,7 +461,7 @@ const AchievementViewPage: React.FC = () => {
                           <td className="py-4 px-4 w-2/12">
                             <div>
                               <p className="text-sm font-medium text-text-primary truncate">
-                                {(achievement as any).users?.username || '未知学生'}
+                                {(achievement as any).users?.full_name || (achievement as any).users?.username || '未知学生'}
                               </p>
                               <p className="text-xs text-text-muted truncate">
                                 {(achievement as any).users?.email || ''}
@@ -447,6 +497,59 @@ const AchievementViewPage: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+              
+              {/* 分页组件 */}
+              {filteredAchievements.length > 0 && (
+                <div className="px-6 py-4 border-t border-border-light">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-text-muted">
+                      显示第 {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredAchievements.length)} 条，
+                      共 {filteredAchievements.length} 条成果
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                          currentPage === 1
+                            ? 'border-border-light text-text-muted cursor-not-allowed'
+                            : 'border-border-light text-text-primary hover:bg-bg-gray'
+                        }`}
+                      >
+                        <i className="fas fa-chevron-left"></i>
+                      </button>
+                      
+                      {/* 页码显示 */}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                            currentPage === page
+                              ? 'bg-secondary text-white border-secondary'
+                              : 'border-border-light text-text-primary hover:bg-bg-gray'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                      
+                      <button
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                          currentPage === totalPages
+                            ? 'border-border-light text-text-muted cursor-not-allowed'
+                            : 'border-border-light text-text-primary hover:bg-bg-gray'
+                        }`}
+                      >
+                        <i className="fas fa-chevron-right"></i>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -494,13 +597,13 @@ const AchievementViewPage: React.FC = () => {
                     <div>
                       <p className="text-sm text-text-muted mb-1">发布学生</p>
                       <p className="text-text-primary">
-                        {currentAchievement.publisher?.username} ({currentAchievement.publisher?.email})
+                        {currentAchievement.publisher?.full_name || currentAchievement.publisher?.username} ({currentAchievement.publisher?.email})
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-text-muted mb-1">指导老师</p>
                       <p className="text-text-primary">
-                        {currentAchievement.instructor?.username || '未指定'}
+                        {currentAchievement.instructor?.full_name || currentAchievement.instructor?.username || '未指定'}
                       </p>
                     </div>
                     <div>
@@ -538,7 +641,7 @@ const AchievementViewPage: React.FC = () => {
                       <div>
                         <p className="text-sm text-text-muted mb-1">合作伙伴</p>
                         <p className="text-text-primary">
-                          {currentAchievement.parent.username}
+                          {currentAchievement.parent?.full_name || currentAchievement.parent.username}
                         </p>
                       </div>
                     )}
