@@ -307,16 +307,6 @@ const AchievementLibraryManagement: React.FC = () => {
                 </li>
                 <li>
                   <Link 
-                    to="/system-settings" 
-                    className={`${styles.sidebarItem} flex items-center px-4 py-3 text-text-secondary hover:text-[#2E7D32] rounded-r-lg ${activeNavItem === 'settings' ? styles.sidebarItemActive : ''}`}
-                    onClick={() => handleNavItemClick('settings')}
-                  >
-                    <i className="fas fa-cog w-5 text-center mr-3"></i>
-                    <span>系统设置</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link 
                     to="/login" 
                     className={`${styles.sidebarItem} flex items-center px-4 py-3 text-text-secondary hover:text-[#2E7D32] rounded-r-lg ${activeNavItem === 'logout' ? styles.sidebarItemActive : ''}`}
                     onClick={(e) => {

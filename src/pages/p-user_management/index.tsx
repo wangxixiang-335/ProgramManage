@@ -725,12 +725,6 @@ const UserManagement: React.FC = () => {
                   </Link>
                 </li>
                 <li>
-                  <button className={`${styles.sidebarItem} flex items-center px-4 py-3 text-text-secondary hover:text-green-600 rounded-r-lg w-full text-left`}>
-                    <i className="fas fa-cog w-5 text-center mr-3"></i>
-                    <span>系统设置</span>
-                  </button>
-                </li>
-                <li>
                   <Link 
                     to="/login" 
                     className={`${styles.sidebarItem} flex items-center px-4 py-3 text-text-secondary hover:text-green-600 rounded-r-lg`}
