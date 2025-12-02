@@ -7,6 +7,11 @@ import {
   buildOrganizationTree, 
   getUsers, 
   getClasses, 
+  getUnassignedStudents,
+  addStudentsToClass,
+  switchStudentClass,
+  getAllClassesForSwitch,
+  getAllClassesForSwitchFallback,
   OrgTreeNode, 
   User,
   getRoleName,
@@ -124,7 +129,36 @@ const UserManagement: React.FC = () => {
           )}
           {!hasChildren && <div className="w-6"></div>}
           <i className={`${node.icon} ${node.iconColor} mr-2`}></i>
-          <span className="font-medium">{node.name}</span>
+          <span 
+            className={`font-medium flex-1 ${node.type === 'student' ? 'cursor-pointer hover:text-green-600' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (node.type === 'student' && node.userId) {
+                // 找到对应的用户数据
+                const student = usersList.find(u => u.id === node.userId);
+                if (student) {
+                  handleOpenSwitchClassModal(student);
+                }
+              }
+            }}
+            title={node.type === 'student' ? '点击切换班级' : ''}
+          >
+            {node.name}
+          </span>
+          
+          {/* 为班级节点添加添加按钮 */}
+          {node.type === 'class' && (
+            <button 
+              className="ml-2 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenAddStudentModal(node.classId || '');
+              }}
+              title="添加学生到班级"
+            >
+              <i className="fas fa-plus text-xs"></i>
+            </button>
+          )}
 
         </div>
         {hasChildren && node.isOpen && (
@@ -156,13 +190,25 @@ const UserManagement: React.FC = () => {
   });
 
   // 分页计算变量
-
-  // 计算分页数据
   const totalItems = sortedUsersList.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedUsers = sortedUsersList.slice(startIndex, endIndex);
+
+  // 添加学生相关状态
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [availableStudents, setAvailableStudents] = useState<User[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  // 班级切换相关状态
+  const [showSwitchClassModal, setShowSwitchClassModal] = useState(false);
+  const [selectedStudentForSwitch, setSelectedStudentForSwitch] = useState<User | null>(null);
+  const [allClassesForSwitch, setAllClassesForSwitch] = useState<any[]>([]);
+  const [selectedNewClassId, setSelectedNewClassId] = useState<string>('');
+  const [loadingClassesForSwitch, setLoadingClassesForSwitch] = useState(false);
 
   // 退出登录
   const handleLogout = (e: React.MouseEvent) => {
@@ -194,6 +240,126 @@ const UserManagement: React.FC = () => {
 
   const handleNotificationClick = () => {
     console.log('打开通知面板');
+  };
+
+  // 打开添加学生弹窗
+  const handleOpenAddStudentModal = async (classId: string) => {
+    setSelectedClassId(classId);
+    setSelectedStudentIds([]);
+    setShowAddStudentModal(true);
+    
+    try {
+      setLoadingStudents(true);
+      const students = await getUnassignedStudents();
+      setAvailableStudents(students);
+    } catch (error) {
+      console.error('获取未分配学生失败:', error);
+      alert('获取未分配学生失败，请稍后重试');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // 关闭添加学生弹窗
+  const handleCloseAddStudentModal = () => {
+    setShowAddStudentModal(false);
+    setSelectedClassId('');
+    setSelectedStudentIds([]);
+    setAvailableStudents([]);
+  };
+
+  // 处理学生选择
+  const handleStudentSelection = (studentId: string) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(studentId) 
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  // 添加选中的学生到班级
+  const handleAddStudentsToClass = async () => {
+    if (selectedStudentIds.length === 0) {
+      alert('请选择要添加的学生');
+      return;
+    }
+
+    try {
+      const success = await addStudentsToClass(selectedStudentIds, selectedClassId);
+      if (success) {
+        alert(`成功添加 ${selectedStudentIds.length} 名学生到班级`);
+        handleCloseAddStudentModal();
+        // 刷新数据
+        fetchData();
+      }
+    } catch (error) {
+      console.error('添加学生失败:', error);
+      alert('添加学生失败，请稍后重试');
+    }
+  };
+
+  // 打开班级切换弹窗
+  const handleOpenSwitchClassModal = async (student: User) => {
+    setSelectedStudentForSwitch(student);
+    setSelectedNewClassId(student.class_id || '');
+    setShowSwitchClassModal(true);
+    
+    try {
+      setLoadingClassesForSwitch(true);
+      let classes;
+      
+      // 先尝试主要方法
+      try {
+        classes = await getAllClassesForSwitch();
+      } catch (mainError) {
+        console.warn('主要方法失败，使用备选方案:', mainError);
+        // 如果主要方法失败，使用备选方案
+        classes = await getAllClassesForSwitchFallback();
+      }
+      
+      setAllClassesForSwitch(classes);
+    } catch (error) {
+      console.error('获取班级列表失败:', error);
+      alert('获取班级列表失败，请稍后重试');
+    } finally {
+      setLoadingClassesForSwitch(false);
+    }
+  };
+
+  // 关闭班级切换弹窗
+  const handleCloseSwitchClassModal = () => {
+    setShowSwitchClassModal(false);
+    setSelectedStudentForSwitch(null);
+    setSelectedNewClassId('');
+    setAllClassesForSwitch([]);
+  };
+
+  // 切换学生班级
+  const handleSwitchStudentClass = async () => {
+    if (!selectedStudentForSwitch || !selectedNewClassId) {
+      alert('请选择新的班级');
+      return;
+    }
+
+    if (selectedNewClassId === selectedStudentForSwitch.class_id) {
+      alert('新班级不能与当前班级相同');
+      return;
+    }
+
+    try {
+      const success = await switchStudentClass(selectedStudentForSwitch.id, selectedNewClassId);
+      if (success) {
+        const newClass = allClassesForSwitch.find(c => c.id === selectedNewClassId);
+        const studentName = selectedStudentForSwitch.full_name || selectedStudentForSwitch.username;
+        alert(`成功将 ${studentName} 切换到 ${newClass?.name}`);
+        handleCloseSwitchClassModal();
+        // 刷新数据
+        fetchData();
+      }
+    } catch (error) {
+      console.error('切换班级失败:', error);
+      alert('切换班级失败，请稍后重试');
+    }
   };
 
   return (
@@ -580,6 +746,162 @@ const UserManagement: React.FC = () => {
           </div>
         </main>
       </div>
+      
+      {/* 添加学生弹窗 */}
+      {showAddStudentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">添加学生到班级</h3>
+              <button 
+                onClick={handleCloseAddStudentModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              {loadingStudents ? (
+                <div className="flex justify-center items-center py-8">
+                  <i className="fas fa-spinner fa-spin text-green-600 mr-2"></i>
+                  <span>加载中...</span>
+                </div>
+              ) : availableStudents.length === 0 ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-user-graduate text-gray-400 mb-2"></i>
+                  <p className="text-gray-500">暂无可添加的学生</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div className="flex items-center mb-4">
+                    <input 
+                      type="checkbox"
+                      id="selectAll"
+                      checked={selectedStudentIds.length === availableStudents.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStudentIds(availableStudents.map(s => s.id));
+                        } else {
+                          setSelectedStudentIds([]);
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    <label htmlFor="selectAll" className="text-sm font-medium">
+                      全选 ({selectedStudentIds.length}/{availableStudents.length})
+                    </label>
+                  </div>
+                  
+                  {availableStudents.map(student => (
+                    <div key={student.id} className="flex items-center p-2 border rounded hover:bg-gray-50">
+                      <input 
+                        type="checkbox"
+                        checked={selectedStudentIds.includes(student.id)}
+                        onChange={() => handleStudentSelection(student.id)}
+                        className="mr-3"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{student.full_name || student.username}</div>
+                        <div className="text-sm text-gray-500">{student.email}</div>
+                      </div>
+                      <div className="text-green-600">
+                        <i className="fas fa-user-graduate"></i>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-4 pt-4 border-t">
+              <button 
+                onClick={handleCloseAddStudentModal}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                取消
+              </button>
+              <button 
+                onClick={handleAddStudentsToClass}
+                disabled={selectedStudentIds.length === 0}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                添加选中的学生 ({selectedStudentIds.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 班级切换弹窗 */}
+      {showSwitchClassModal && selectedStudentForSwitch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">切换学生班级</h3>
+              <button 
+                onClick={handleCloseSwitchClassModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <div className="bg-gray-50 p-3 rounded mb-4">
+                <div className="font-medium text-gray-900">
+                  {selectedStudentForSwitch.full_name || selectedStudentForSwitch.username}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {selectedStudentForSwitch.email}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  选择新的班级
+                </label>
+                {loadingClassesForSwitch ? (
+                  <div className="flex justify-center items-center py-4">
+                    <i className="fas fa-spinner fa-spin text-green-600 mr-2"></i>
+                    <span>加载班级列表中...</span>
+                  </div>
+                ) : (
+                  <select 
+                    value={selectedNewClassId}
+                    onChange={(e) => setSelectedNewClassId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="">请选择班级</option>
+                    <option value="">无班级</option>
+                    {allClassesForSwitch.map(cls => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.grades?.name} - {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={handleCloseSwitchClassModal}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                取消
+              </button>
+              <button 
+                onClick={handleSwitchStudentClass}
+                disabled={!selectedNewClassId}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                确认切换
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

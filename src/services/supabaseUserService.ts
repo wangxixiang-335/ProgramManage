@@ -304,3 +304,156 @@ export const getUserIconClass = (role: number): string => {
       return 'fas fa-user text-gray-500 bg-gray-100';
   }
 };
+
+// 获取未分配班级的学生
+export const getUnassignedStudents = async (): Promise<User[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 1) // 学生
+      .is('class_id', null) // 未分配班级
+      .order('full_name', { ascending: true });
+
+    if (error) {
+      console.error('获取未分配班级学生失败:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('获取未分配班级学生异常:', error);
+    throw error;
+  }
+};
+
+// 添加学生到班级
+export const addStudentToClass = async (studentId: string, classId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ class_id: classId, updated_at: new Date().toISOString() })
+      .eq('id', studentId);
+
+    if (error) {
+      console.error('添加学生到班级失败:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('添加学生到班级异常:', error);
+    throw error;
+  }
+};
+
+// 批量添加学生到班级
+export const addStudentsToClass = async (studentIds: string[], classId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ class_id: classId, updated_at: new Date().toISOString() })
+      .in('id', studentIds);
+
+    if (error) {
+      console.error('批量添加学生到班级失败:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('批量添加学生到班级异常:', error);
+    throw error;
+  }
+};
+
+// 切换学生班级
+export const switchStudentClass = async (studentId: string, newClassId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ class_id: newClassId, updated_at: new Date().toISOString() })
+      .eq('id', studentId);
+
+    if (error) {
+      console.error('切换学生班级失败:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('切换学生班级异常:', error);
+    throw error;
+  }
+};
+
+// 获取所有班级（用于切换选择）
+export const getAllClassesForSwitch = async (): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select(`
+        *,
+        grades!inner (name)
+      `)
+      .order('grade_id', { ascending: false })
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('获取所有班级失败:', error);
+      throw error;
+    }
+
+    console.log('获取到的班级数据:', data);
+    return data || [];
+  } catch (error) {
+    console.error('获取所有班级异常:', error);
+    throw error;
+  }
+};
+
+// 备选方案：分别获取班级和年级数据
+export const getAllClassesForSwitchFallback = async (): Promise<any[]> => {
+  try {
+    // 分别获取班级和年级数据
+    const [classesResult, gradesResult] = await Promise.all([
+      supabase
+        .from('classes')
+        .select('*')
+        .order('grade_id', { ascending: false })
+        .order('name', { ascending: true }),
+      supabase
+        .from('grades')
+        .select('id, name')
+        .order('name', { ascending: false })
+    ]);
+
+    if (classesResult.error) {
+      console.error('获取班级失败:', classesResult.error);
+      throw classesResult.error;
+    }
+
+    if (gradesResult.error) {
+      console.error('获取年级失败:', gradesResult.error);
+      throw gradesResult.error;
+    }
+
+    // 手动合并数据
+    const grades = gradesResult.data || [];
+    const classes = classesResult.data || [];
+    
+    const classesWithGrades = classes.map(cls => {
+      const grade = grades.find(g => g.id === cls.grade_id);
+      return {
+        ...cls,
+        grades: grade
+      };
+    });
+
+    console.log('备选方案获取的班级数据:', classesWithGrades);
+    return classesWithGrades;
+  } catch (error) {
+    console.error('备选方案获取班级异常:', error);
+    throw error;
+  }
+};
