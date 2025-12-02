@@ -165,7 +165,7 @@ export const buildOrganizationTree = async (): Promise<OrgTreeNode[]> => {
     const adminChildren: OrgTreeNode[] = adminUsers.map(user => ({
       id: `admin-${user.id}`,
       name: user.full_name || user.username,
-      type: 'student',
+      type: 'admin',
       icon: 'fas fa-user',
       iconColor: 'text-red-400',
       userId: user.id
@@ -175,7 +175,7 @@ export const buildOrganizationTree = async (): Promise<OrgTreeNode[]> => {
     const teacherChildren: OrgTreeNode[] = teacherUsers.map(user => ({
       id: `teacher-${user.id}`,
       name: user.full_name || user.username,
-      type: 'student',
+      type: 'teacher',
       icon: 'fas fa-user',
       iconColor: 'text-blue-400',
       userId: user.id
@@ -302,6 +302,48 @@ export const getUserIconClass = (role: number): string => {
       return 'fas fa-user-graduate text-green-500 bg-green-100';
     default:
       return 'fas fa-user text-gray-500 bg-gray-100';
+  }
+};
+
+// 切换教师班级
+export const switchTeacherClass = async (teacherId: string, newClassId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ class_id: newClassId, updated_at: new Date().toISOString() })
+      .eq('id', teacherId);
+
+    if (error) {
+      console.error('切换教师班级失败:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('切换教师班级异常:', error);
+    throw error;
+  }
+};
+
+// 获取未分配班级的教师
+export const getUnassignedTeachers = async (): Promise<User[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 2) // 教师
+      .is('class_id', null) // 未分配班级
+      .order('full_name', { ascending: true });
+
+    if (error) {
+      console.error('获取未分配班级教师失败:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('获取未分配班级教师异常:', error);
+    throw error;
   }
 };
 

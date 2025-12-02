@@ -10,6 +10,7 @@ import {
   getUnassignedStudents,
   addStudentsToClass,
   switchStudentClass,
+  switchTeacherClass,
   getAllClassesForSwitch,
   getAllClassesForSwitchFallback,
   OrgTreeNode, 
@@ -130,18 +131,22 @@ const UserManagement: React.FC = () => {
           {!hasChildren && <div className="w-6"></div>}
           <i className={`${node.icon} ${node.iconColor} mr-2`}></i>
           <span 
-            className={`font-medium flex-1 ${node.type === 'student' ? 'cursor-pointer hover:text-green-600' : ''}`}
+            className={`font-medium flex-1 ${(node.type === 'student' || node.type === 'teacher') ? 'cursor-pointer hover:text-green-600' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
-              if (node.type === 'student' && node.userId) {
+              if ((node.type === 'student' || node.type === 'teacher') && node.userId) {
                 // 找到对应的用户数据
-                const student = usersList.find(u => u.id === node.userId);
-                if (student) {
-                  handleOpenSwitchClassModal(student);
+                const user = usersList.find(u => u.id === node.userId);
+                if (user) {
+                  if (node.type === 'student') {
+                    handleOpenSwitchClassModal(user);
+                  } else if (node.type === 'teacher') {
+                    handleOpenSwitchTeacherClassModal(user);
+                  }
                 }
               }
             }}
-            title={node.type === 'student' ? '点击切换班级' : ''}
+            title={(node.type === 'student' || node.type === 'teacher') ? '点击切换班级' : ''}
           >
             {node.name}
           </span>
@@ -203,12 +208,19 @@ const UserManagement: React.FC = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
-  // 班级切换相关状态
+  // 学生班级切换相关状态
   const [showSwitchClassModal, setShowSwitchClassModal] = useState(false);
   const [selectedStudentForSwitch, setSelectedStudentForSwitch] = useState<User | null>(null);
   const [allClassesForSwitch, setAllClassesForSwitch] = useState<any[]>([]);
   const [selectedNewClassId, setSelectedNewClassId] = useState<string>('');
   const [loadingClassesForSwitch, setLoadingClassesForSwitch] = useState(false);
+
+  // 教师班级切换相关状态
+  const [showSwitchTeacherModal, setShowSwitchTeacherModal] = useState(false);
+  const [selectedTeacherForSwitch, setSelectedTeacherForSwitch] = useState<User | null>(null);
+  const [allClassesForTeacher, setAllClassesForTeacher] = useState<any[]>([]);
+  const [selectedTeacherNewClassId, setSelectedTeacherNewClassId] = useState<string>('');
+  const [loadingClassesForTeacher, setLoadingClassesForTeacher] = useState(false);
 
   // 退出登录
   const handleLogout = (e: React.MouseEvent) => {
@@ -358,6 +370,70 @@ const UserManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('切换班级失败:', error);
+      alert('切换班级失败，请稍后重试');
+    }
+  };
+
+  // 打开教师班级切换弹窗
+  const handleOpenSwitchTeacherClassModal = async (teacher: User) => {
+    setSelectedTeacherForSwitch(teacher);
+    setSelectedTeacherNewClassId(teacher.class_id || '');
+    setShowSwitchTeacherModal(true);
+    
+    try {
+      setLoadingClassesForTeacher(true);
+      let classes;
+      
+      // 先尝试主要方法
+      try {
+        classes = await getAllClassesForSwitch();
+      } catch (mainError) {
+        console.warn('主要方法失败，使用备选方案:', mainError);
+        // 如果主要方法失败，使用备选方案
+        classes = await getAllClassesForSwitchFallback();
+      }
+      
+      setAllClassesForTeacher(classes);
+    } catch (error) {
+      console.error('获取班级列表失败:', error);
+      alert('获取班级列表失败，请稍后重试');
+    } finally {
+      setLoadingClassesForTeacher(false);
+    }
+  };
+
+  // 关闭教师班级切换弹窗
+  const handleCloseSwitchTeacherModal = () => {
+    setShowSwitchTeacherModal(false);
+    setSelectedTeacherForSwitch(null);
+    setSelectedTeacherNewClassId('');
+    setAllClassesForTeacher([]);
+  };
+
+  // 切换教师班级
+  const handleSwitchTeacherClass = async () => {
+    if (!selectedTeacherForSwitch || !selectedTeacherNewClassId) {
+      alert('请选择新的班级');
+      return;
+    }
+
+    if (selectedTeacherNewClassId === selectedTeacherForSwitch.class_id) {
+      alert('新班级不能与当前班级相同');
+      return;
+    }
+
+    try {
+      const success = await switchTeacherClass(selectedTeacherForSwitch.id, selectedTeacherNewClassId);
+      if (success) {
+        const newClass = allClassesForTeacher.find(c => c.id === selectedTeacherNewClassId);
+        const teacherName = selectedTeacherForSwitch.full_name || selectedTeacherForSwitch.username;
+        alert(`成功将 ${teacherName} 切换到 ${newClass?.name}`);
+        handleCloseSwitchTeacherModal();
+        // 刷新数据
+        fetchData();
+      }
+    } catch (error) {
+      console.error('切换教师班级失败:', error);
       alert('切换班级失败，请稍后重试');
     }
   };
@@ -895,6 +971,76 @@ const UserManagement: React.FC = () => {
                 onClick={handleSwitchStudentClass}
                 disabled={!selectedNewClassId}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                确认切换
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 教师班级切换弹窗 */}
+      {showSwitchTeacherModal && selectedTeacherForSwitch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">切换教师班级</h3>
+              <button 
+                onClick={handleCloseSwitchTeacherModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <div className="bg-blue-50 p-3 rounded mb-4">
+                <div className="font-medium text-gray-900">
+                  {selectedTeacherForSwitch.full_name || selectedTeacherForSwitch.username}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {selectedTeacherForSwitch.email}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  选择新的班级
+                </label>
+                {loadingClassesForTeacher ? (
+                  <div className="flex justify-center items-center py-4">
+                    <i className="fas fa-spinner fa-spin text-green-600 mr-2"></i>
+                    <span>加载班级列表中...</span>
+                  </div>
+                ) : (
+                  <select 
+                    value={selectedTeacherNewClassId}
+                    onChange={(e) => setSelectedTeacherNewClassId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="">请选择班级</option>
+                    <option value="">无班级</option>
+                    {allClassesForTeacher.map(cls => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.grades?.name} - {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={handleCloseSwitchTeacherModal}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                取消
+              </button>
+              <button 
+                onClick={handleSwitchTeacherClass}
+                disabled={!selectedTeacherNewClassId}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 确认切换
               </button>
