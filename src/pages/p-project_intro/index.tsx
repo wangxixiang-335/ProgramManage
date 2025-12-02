@@ -133,23 +133,22 @@ const ProjectIntroPage: React.FC = () => {
     setCollaborators(collaborators.filter(c => c.id !== id));
   };
 
-  // 照片上传
+  // 照片上传（只处理第一张图片）
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const newPhoto: Photo = {
-            id: Date.now().toString(),
-            file,
-            url: event.target?.result as string,
-            description: ''
-          };
-          setPhotos([...photos, newPhoto]);
+    if (files && files.length > 0) {
+      const file = files[0]; // 只取第一个文件
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const newPhoto: Photo = {
+          id: Date.now().toString(),
+          file,
+          url: event.target?.result as string,
+          description: ''
         };
-        reader.readAsDataURL(file);
-      });
+        setPhotos([newPhoto]); // 替换现有照片，只保留一张
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -163,27 +162,26 @@ const ProjectIntroPage: React.FC = () => {
     setPhotos(photos.map(p => p.id === id ? { ...p, description } : p));
   };
 
-  // 视频上传
+  // 视频上传（只处理第一个视频）
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const video = document.createElement('video');
-          video.src = event.target?.result as string;
-          video.onloadedmetadata = () => {
-            const newVideo: Video = {
-              id: Date.now().toString(),
-              file,
-              url: event.target?.result as string,
-              duration: video.duration
-            };
-            setVideos([...videos, newVideo]);
+    if (files && files.length > 0) {
+      const file = files[0]; // 只取第一个文件
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const video = document.createElement('video');
+        video.src = event.target?.result as string;
+        video.onloadedmetadata = () => {
+          const newVideo: Video = {
+            id: Date.now().toString(),
+            file,
+            url: event.target?.result as string,
+            duration: video.duration
           };
+          setVideos([newVideo]); // 替换现有视频，只保留一个
         };
-        reader.readAsDataURL(file);
-      });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -208,6 +206,106 @@ const ProjectIntroPage: React.FC = () => {
     }
   };
 
+  // 保存草稿
+  const handleSaveDraft = async () => {
+    if (!projectName || !projectLeader) {
+      alert('请输入项目名称和负责人');
+      return;
+    }
+
+    if (!user?.id) {
+      alert('用户未登录，请先登录');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // 处理富文本中的图片
+      let processedDescription = projectDescription;
+      if (projectDescription) {
+        const imageProcessResult = await AchievementService.processRichTextImages(projectDescription, user.id);
+        if (imageProcessResult.success && imageProcessResult.processedContent) {
+          processedDescription = imageProcessResult.processedContent;
+        }
+      }
+
+      // 上传封面图片（草稿也保存封面）
+      let coverUrl = '';
+      if (photos.length > 0) {
+        const coverPhoto = photos[0];
+        const fileName = `cover_${Date.now()}_${coverPhoto.id}.jpg`;
+        const filePath = `achievements/${user.id}/${fileName}`;
+        const uploadResult = await AchievementService.uploadFile(coverPhoto.file, 'achievement-images', filePath);
+        
+        if (uploadResult.success && uploadResult.url) {
+          coverUrl = uploadResult.url;
+        } else {
+          console.warn('封面图片上传失败:', uploadResult.message);
+        }
+      }
+
+      // 上传演示视频（草稿也保存视频）
+      let videoUrl = '';
+      if (videos.length > 0) {
+        const demoVideo = videos[0];
+        const fileName = `video_${Date.now()}_${demoVideo.id}.mp4`;
+        const filePath = `achievements/${user.id}/${fileName}`;
+        const uploadResult = await AchievementService.uploadFile(demoVideo.file, 'achievement-videos', filePath);
+        
+        if (uploadResult.success && uploadResult.url) {
+          videoUrl = uploadResult.url;
+        } else {
+          console.warn('演示视频上传失败:', uploadResult.message);
+        }
+      }
+
+      // 处理协作者信息 - 将协作者信息添加到项目描述中
+      let finalDescription = processedDescription || '暂无项目描述';
+      if (collaborators.length > 0) {
+        const collaboratorsText = collaborators.map(c => c.name).join(', ');
+        finalDescription = `<p><strong>项目成员：</strong>${projectLeader}（负责人）`;
+        if (collaboratorsText) {
+          finalDescription += `、${collaboratorsText}`;
+        }
+        finalDescription += '</p>' + finalDescription;
+      }
+
+      // 查找项目类型ID
+      const selectedType = achievementTypes.find(type => type.name === projectType);
+      const typeId = selectedType ? selectedType.id : achievementTypes[0]?.id;
+
+      if (!typeId) {
+        throw new Error('未找到可用的项目类型');
+      }
+
+      // 创建草稿数据 - 使用正确的数据库字段结构
+      const draftData = {
+        title: projectName,
+        description: finalDescription,
+        type_id: typeId,
+        cover_url: coverUrl,
+        video_url: videoUrl,
+        publisher_id: user.id,
+        instructor_id: user.id // 学生发布时，默认自己为指导老师
+      };
+
+      // 保存草稿
+      const result = await AchievementService.saveDraft(draftData);
+      
+      if (result.success) {
+        alert('草稿保存成功！');
+      } else {
+        alert(`保存草稿失败: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('保存草稿失败:', error);
+      alert(`保存草稿失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // 项目上传
   const handleUploadProject = async () => {
     if (!projectName || !projectLeader) {
@@ -215,27 +313,114 @@ const ProjectIntroPage: React.FC = () => {
       return;
     }
 
+    if (!projectType) {
+      alert('请选择项目类型');
+      return;
+    }
+
+    if (!user?.id) {
+      alert('用户未登录，请先登录');
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // 模拟上传过程
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      alert('项目上传成功！');
+      // 处理富文本中的图片
+      let processedDescription = projectDescription;
+      if (projectDescription) {
+        const imageProcessResult = await AchievementService.processRichTextImages(projectDescription, user.id);
+        if (imageProcessResult.success && imageProcessResult.processedContent) {
+          processedDescription = imageProcessResult.processedContent;
+        }
+      }
+
+      // 上传封面图片（只使用第一张照片作为封面）
+      let coverUrl = '';
+      if (photos.length > 0) {
+        const coverPhoto = photos[0];
+        const fileName = `cover_${Date.now()}_${coverPhoto.id}.jpg`;
+        const filePath = `achievements/${user.id}/${fileName}`;
+        const uploadResult = await AchievementService.uploadFile(coverPhoto.file, 'achievement-images', filePath);
+        
+        if (uploadResult.success && uploadResult.url) {
+          coverUrl = uploadResult.url;
+        } else {
+          console.warn('封面图片上传失败:', uploadResult.message);
+        }
+      }
+
+      // 上传演示视频（只使用第一个视频）
+      let videoUrl = '';
+      if (videos.length > 0) {
+        const demoVideo = videos[0];
+        const fileName = `video_${Date.now()}_${demoVideo.id}.mp4`;
+        const filePath = `achievements/${user.id}/${fileName}`;
+        const uploadResult = await AchievementService.uploadFile(demoVideo.file, 'achievement-videos', filePath);
+        
+        if (uploadResult.success && uploadResult.url) {
+          videoUrl = uploadResult.url;
+        } else {
+          console.warn('演示视频上传失败:', uploadResult.message);
+        }
+      }
+
+      // 处理协作者信息 - 将协作者信息添加到项目描述中
+      let finalDescription = processedDescription || '暂无项目描述';
+      if (collaborators.length > 0) {
+        const collaboratorsText = collaborators.map(c => c.name).join(', ');
+        finalDescription = `<p><strong>项目成员：</strong>${projectLeader}（负责人）`;
+        if (collaboratorsText) {
+          finalDescription += `、${collaboratorsText}`;
+        }
+        finalDescription += '</p>' + finalDescription;
+      }
+
+      // 查找项目类型ID
+      const selectedType = achievementTypes.find(type => type.name === projectType);
+      if (!selectedType) {
+        throw new Error('未找到对应的项目类型');
+      }
+
+      // 创建成果数据 - 使用正确的数据库字段结构
+      const achievementData = {
+        title: projectName,
+        description: finalDescription,
+        type_id: selectedType.id,
+        cover_url: coverUrl,
+        video_url: videoUrl,
+        publisher_id: user.id,
+        instructor_id: user.id, // 学生发布时，默认自己为指导老师
+        status: 'pending' as const
+      };
+
+      // 创建成果
+      const result = await AchievementService.createAchievement(achievementData);
       
-      // 重置表单
-      setProjectName('');
-      setProjectLeader('');
-      setProjectType('');
-      setProjectDescription('');
-      setCollaborators([]);
-      setPhotos([]);
-      setVideos([]);
-      setDocumentFile(null);
-      if (richTextEditorRef.current) {
-        richTextEditorRef.current.innerHTML = '';
+      if (result.success) {
+        alert('项目发布成功！');
+        
+        // 重置表单
+        setProjectName('');
+        setProjectLeader('');
+        setProjectType('');
+        setProjectDescription('');
+        setCollaborators([]);
+        setPhotos([]);
+        setVideos([]);
+        setDocumentFile(null);
+        if (richTextEditorRef.current) {
+          richTextEditorRef.current.innerHTML = '';
+        }
+        
+        // 可以跳转到成果列表页面
+        // navigate('/business-process');
+      } else {
+        alert(`发布失败: ${result.message}`);
       }
     } catch (error) {
-      alert('上传失败，请重试');
+      console.error('发布项目失败:', error);
+      alert(`发布失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -261,12 +446,15 @@ const ProjectIntroPage: React.FC = () => {
     ));
   };
 
-  // 渲染照片预览
+  // 渲染照片预览（只显示一张封面图片）
   const renderPhotoPreviews = () => {
-    return photos.map(photo => (
+    if (photos.length === 0) return null;
+    
+    const photo = photos[0]; // 只显示第一张图片
+    return (
       <div key={photo.id} className="flex flex-col gap-2">
         <div className="relative">
-          <img src={photo.url} className="w-full h-48 object-cover rounded-lg" alt="项目照片预览" />
+          <img src={photo.url} className="w-full h-48 object-cover rounded-lg" alt="项目封面预览" />
           <button 
             onClick={() => removePhoto(photo.id)}
             className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-md text-text-muted hover:text-secondary"
@@ -274,22 +462,16 @@ const ProjectIntroPage: React.FC = () => {
             <i className="fas fa-times"></i>
           </button>
         </div>
-        <div>
-          <input 
-            type="text" 
-            value={photo.description}
-            onChange={(e) => updatePhotoDescription(photo.id, e.target.value)}
-            className={`w-full px-3 py-2 border border-border-light rounded-lg text-base ${styles.searchInputFocus}`}
-            placeholder="请输入图片描述..."
-          />
-        </div>
       </div>
-    ));
+    );
   };
 
-  // 渲染视频预览
+  // 渲染视频预览（只显示一个视频）
   const renderVideoPreviews = () => {
-    return videos.map(video => (
+    if (videos.length === 0) return null;
+    
+    const video = videos[0]; // 只显示第一个视频
+    return (
       <div key={video.id} className="relative mb-4">
         <video controls className="w-full rounded-lg" alt="项目视频预览">
           <source src={video.url} type={video.file.type} />
@@ -307,7 +489,7 @@ const ProjectIntroPage: React.FC = () => {
           </div>
         )}
       </div>
-    ));
+    );
   };
 
   return (
@@ -582,22 +764,21 @@ const ProjectIntroPage: React.FC = () => {
                 </div>
               </div>
               
-              {/* 第四行：项目照片 */}
+              {/* 第四行：项目封面照片 */}
               <div className="mb-8">
-                <label className="block text-sm font-medium text-text-secondary mb-2">项目照片</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">项目封面照片</label>
                 <div 
                   onClick={() => photoUploadRef.current?.click()}
                   className="border-2 border-dashed border-border-light rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <i className="fas fa-image text-4xl text-text-muted mb-3"></i>
-                  <p className="text-sm text-text-muted">点击或拖拽文件到此处上传</p>
-                  <p className="text-xs text-text-muted mt-1">支持 JPG、PNG 格式，建议尺寸 1200x675px，最大 10MB</p>
+                  <p className="text-sm text-text-muted">点击上传封面图片</p>
+                  <p className="text-xs text-text-muted mt-1">支持 JPG、PNG 格式，建议尺寸 1200x675px，最大 5MB</p>
                   <input 
                     ref={photoUploadRef}
                     type="file" 
                     className="hidden" 
                     accept="image/jpeg, image/png"
-                    multiple
                     onChange={handlePhotoUpload}
                   />
                 </div>
@@ -608,22 +789,21 @@ const ProjectIntroPage: React.FC = () => {
                 )}
               </div>
               
-              {/* 第五行：项目视频 */}
+              {/* 第五行：项目演示视频 */}
               <div className="mb-8">
-                <label className="block text-sm font-medium text-text-secondary mb-2">项目视频</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">项目演示视频</label>
                 <div 
                   onClick={() => videoUploadRef.current?.click()}
                   className="border-2 border-dashed border-border-light rounded-lg p-4 text-center hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <i className="fas fa-video text-3xl text-text-muted mb-2"></i>
-                  <p className="text-sm text-text-muted">点击或拖拽文件到此处上传</p>
+                  <p className="text-sm text-text-muted">点击上传演示视频</p>
                   <p className="text-xs text-text-muted mt-1">支持 MP4、WebM 格式，最大 100MB，时长不超过5分钟</p>
                   <input 
                     ref={videoUploadRef}
                     type="file" 
                     className="hidden" 
                     accept="video/mp4, video/webm"
-                    multiple
                     onChange={handleVideoUpload}
                   />
                 </div>
@@ -673,8 +853,9 @@ const ProjectIntroPage: React.FC = () => {
               {/* 底部按钮 */}
               <div className="flex justify-end space-x-4 pt-4 border-t border-border-light">
                 <button 
-                  onClick={() => {}}
-                  className="px-6 py-3 bg-gray-200 text-text-primary rounded-lg hover:bg-gray-300 transition-colors"
+                  onClick={handleSaveDraft}
+                  disabled={isSubmitting}
+                  className="px-6 py-3 bg-gray-200 text-text-primary rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
                 >
                   存草稿
                 </button>
@@ -683,7 +864,7 @@ const ProjectIntroPage: React.FC = () => {
                   disabled={isSubmitting}
                   className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
                 >
-                  {isSubmitting ? '上传中...' : '上传项目'}
+                  {isSubmitting ? '发布中...' : '发布'}
                 </button>
               </div>
             </div>
@@ -724,34 +905,29 @@ const ProjectIntroPage: React.FC = () => {
                   <div dangerouslySetInnerHTML={{ __html: projectDescription || '<p>暂无项目描述</p>' }} />
                 </div>
                 
-                {/* 预览照片 */}
+                {/* 预览封面照片 */}
                 {photos.length > 0 && (
                   <div className="mb-8">
-                    <h3 className="text-lg font-medium text-text-primary mb-3">项目照片</h3>
+                    <h3 className="text-lg font-medium text-text-primary mb-3">项目封面</h3>
                     <div className="flex flex-col gap-6">
-                      {photos.map(photo => (
-                        <div key={photo.id}>
-                          <img src={photo.url} className="w-full h-64 object-cover rounded-lg" alt="项目照片" />
-                          {photo.description && <p className="mt-3 text-base text-text-secondary">{photo.description}</p>}
-                        </div>
-                      ))}
+                      <div>
+                        <img src={photos[0].url} className="w-full h-64 object-cover rounded-lg" alt="项目封面" />
+                      </div>
                     </div>
                   </div>
                 )}
                 
-                {/* 预览视频 */}
+                {/* 预览演示视频 */}
                 {videos.length > 0 && (
                   <div className="mb-8">
                     <h3 className="text-lg font-medium text-text-primary mb-3">项目演示视频</h3>
                     <div className="space-y-4">
-                      {videos.map(video => (
-                        <div key={video.id}>
-                          <video controls className="w-full rounded-lg" alt="项目视频预览">
-                            <source src={video.url} type={video.file.type} />
-                            您的浏览器不支持视频播放。
-                          </video>
-                        </div>
-                      ))}
+                      <div>
+                        <video controls className="w-full rounded-lg" alt="项目视频预览">
+                          <source src={videos[0].url} type={videos[0].file.type} />
+                          您的浏览器不支持视频播放。
+                        </video>
+                      </div>
                     </div>
                   </div>
                 )}
