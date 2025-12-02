@@ -266,7 +266,7 @@ const PersonalCenter: React.FC = () => {
             <li>
               <Link to="/project-intro" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-text-secondary hover:bg-gray-50 hover:text-text-primary">
                 <i className="fas fa-folder-open text-lg"></i>
-                <span className="font-medium">项目简介</span>
+                <span className="font-medium">成果发布</span>
               </Link>
             </li>
             <li>
@@ -279,12 +279,6 @@ const PersonalCenter: React.FC = () => {
               <Link to="/student-info" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-text-secondary hover:bg-gray-50 hover:text-text-primary">
                 <i className="fas fa-users text-lg"></i>
                 <span className="font-medium">数据看板</span>
-              </Link>
-            </li>
-            <li>
-              <Link to="/media-consult" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-text-secondary hover:bg-gray-50 hover:text-text-primary">
-                <i className="fas fa-newspaper text-lg"></i>
-                <span className="font-medium">媒体咨询</span>
               </Link>
             </li>
             <li>

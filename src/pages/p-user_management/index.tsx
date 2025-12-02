@@ -13,6 +13,10 @@ import {
   switchTeacherClass,
   getAllClassesForSwitch,
   getAllClassesForSwitchFallback,
+  createClass,
+  addUser,
+  searchUsers,
+  getGrades,
   OrgTreeNode, 
   User,
   getRoleName,
@@ -195,11 +199,12 @@ const UserManagement: React.FC = () => {
   });
 
   // 分页计算变量
-  const totalItems = sortedUsersList.length;
+  const displayUsersList = searchKeyword || roleFilter || classFilter ? searchUsersList : sortedUsersList;
+  const totalItems = displayUsersList.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedUsers = sortedUsersList.slice(startIndex, endIndex);
+  const paginatedUsers = displayUsersList.slice(startIndex, endIndex);
 
   // 添加学生相关状态
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
@@ -222,6 +227,37 @@ const UserManagement: React.FC = () => {
   const [selectedTeacherNewClassId, setSelectedTeacherNewClassId] = useState<string>('');
   const [loadingClassesForTeacher, setLoadingClassesForTeacher] = useState(false);
 
+  // 创建班级相关状态
+  const [showCreateClassModal, setShowCreateClassModal] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [selectedGradeForClass, setSelectedGradeForClass] = useState('');
+  const [selectedInstructorForClass, setSelectedInstructorForClass] = useState('');
+  const [loadingCreateClass, setLoadingCreateClass] = useState(false);
+  const [gradesForCreateClass, setGradesForCreateClass] = useState<any[]>([]);
+  const [teachersForInstructor, setTeachersForInstructor] = useState<any[]>([]);
+
+  // 添加用户相关状态
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUser, setNewUser] = useState({
+    username: '',
+    full_name: '',
+    email: '',
+    password: '',
+    role: 1, // 默认学生
+    class_id: ''
+  });
+  const [loadingAddUser, setLoadingAddUser] = useState(false);
+  const [classesForUser, setClassesForUser] = useState<any[]>([]);
+
+  // 搜索相关状态
+  const [searchUsersList, setSearchUsersList] = useState<User[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+
+  // 初始化搜索数据
+  useEffect(() => {
+    handleSearchUsers(searchKeyword, roleFilter ? parseInt(roleFilter) : undefined, classFilter || undefined);
+  }, [searchKeyword, roleFilter, classFilter]);
+
   // 退出登录
   const handleLogout = (e: React.MouseEvent) => {
     if (!confirm('确定要退出登录吗？')) {
@@ -229,14 +265,7 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // 操作按钮处理
-  const handleCreateClass = () => {
-    console.log('创建班级');
-  };
 
-  const handleAddUser = () => {
-    console.log('添加用户');
-  };
 
   const handleImportUsers = () => {
     console.log('导入用户');
@@ -435,6 +464,152 @@ const UserManagement: React.FC = () => {
     } catch (error) {
       console.error('切换教师班级失败:', error);
       alert('切换班级失败，请稍后重试');
+    }
+  };
+
+  // 打开创建班级弹窗
+  const handleOpenCreateClassModal = async () => {
+    try {
+      setLoadingCreateClass(true);
+      const [grades, teachers] = await Promise.all([
+        getGrades(),
+        getUsers().then(users => users.filter(u => u.role === 2)) // 获取教师
+      ]);
+      setGradesForCreateClass(grades);
+      setTeachersForInstructor(teachers);
+      setShowCreateClassModal(true);
+    } catch (error) {
+      console.error('获取年级和教师数据失败:', error);
+      alert('获取数据失败，请稍后重试');
+    } finally {
+      setLoadingCreateClass(false);
+    }
+  };
+
+  // 关闭创建班级弹窗
+  const handleCloseCreateClassModal = () => {
+    setShowCreateClassModal(false);
+    setNewClassName('');
+    setSelectedGradeForClass('');
+    setSelectedInstructorForClass('');
+  };
+
+  // 创建班级
+  const handleCreateClass = async () => {
+    if (!newClassName.trim()) {
+      alert('请输入班级名称');
+      return;
+    }
+
+    if (!selectedGradeForClass) {
+      alert('请选择年级');
+      return;
+    }
+
+    try {
+      const success = await createClass(
+        newClassName.trim(),
+        selectedGradeForClass,
+        selectedInstructorForClass || undefined
+      );
+      
+      if (success) {
+        alert('班级创建成功');
+        handleCloseCreateClassModal();
+        fetchData(); // 刷新数据
+      }
+    } catch (error) {
+      console.error('创建班级失败:', error);
+      alert('创建班级失败，请稍后重试');
+    }
+  };
+
+  // 打开添加用户弹窗
+  const handleOpenAddUserModal = async () => {
+    try {
+      setLoadingAddUser(true);
+      const [classList, teachers] = await Promise.all([
+        getClasses(),
+        getUsers().then(users => users.filter(u => u.role === 2)) // 获取教师
+      ]);
+      setClassesForUser(classList);
+      setTeachersForInstructor(teachers);
+      setShowAddUserModal(true);
+    } catch (error) {
+      console.error('获取班级和教师数据失败:', error);
+      alert('获取数据失败，请稍后重试');
+    } finally {
+      setLoadingAddUser(false);
+    }
+  };
+
+  // 关闭添加用户弹窗
+  const handleCloseAddUserModal = () => {
+    setShowAddUserModal(false);
+    setNewUser({
+      username: '',
+      full_name: '',
+      email: '',
+      password: '',
+      role: 1,
+      class_id: ''
+    });
+  };
+
+  // 添加用户
+  const handleAddUser = async () => {
+    if (!newUser.username.trim()) {
+      alert('请输入用户名');
+      return;
+    }
+
+    if (!newUser.full_name.trim()) {
+      alert('请输入姓名');
+      return;
+    }
+
+    if (!newUser.email.trim()) {
+      alert('请输入邮箱');
+      return;
+    }
+
+    if (!newUser.password) {
+      alert('请输入密码');
+      return;
+    }
+
+    try {
+      const success = await addUser({
+        username: newUser.username.trim(),
+        full_name: newUser.full_name.trim(),
+        email: newUser.email.trim(),
+        password: newUser.password,
+        role: newUser.role,
+        class_id: newUser.class_id || undefined
+      });
+      
+      if (success) {
+        alert('用户添加成功');
+        handleCloseAddUserModal();
+        fetchData(); // 刷新数据
+      }
+    } catch (error) {
+      console.error('添加用户失败:', error);
+      alert('添加用户失败，请稍后重试');
+    }
+  };
+
+  // 搜索用户
+  const handleSearchUsers = async (keyword: string, role?: number, classId?: string) => {
+    try {
+      setLoadingSearch(true);
+      const users = await searchUsers(keyword, role, classId);
+      setSearchUsersList(users);
+    } catch (error) {
+      console.error('搜索用户失败:', error);
+      alert('搜索失败，请稍后重试');
+    } finally {
+      setLoadingSearch(false);
     }
   };
 
@@ -640,9 +815,9 @@ const UserManagement: React.FC = () => {
                   onChange={(e) => setRoleFilter(e.target.value)}
                 >
                   <option value="">所有角色</option>
-                  <option value="admin">管理员</option>
-                  <option value="teacher">教师</option>
-                  <option value="student">学生</option>
+                  <option value="3">管理员</option>
+                  <option value="2">教师</option>
+                  <option value="1">学生</option>
                 </select>
                 <select 
                   className="px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-600"
@@ -650,9 +825,11 @@ const UserManagement: React.FC = () => {
                   onChange={(e) => setClassFilter(e.target.value)}
                 >
                   <option value="">所有班级</option>
-                  <option value="class1">软件工程1班</option>
-                  <option value="class2">软件工程2班</option>
-                  <option value="class3">计算机科学1班</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -1043,6 +1220,210 @@ const UserManagement: React.FC = () => {
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 确认切换
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 创建班级弹窗 */}
+      {showCreateClassModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">创建班级</h3>
+              <button 
+                onClick={handleCloseCreateClassModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  班级名称
+                </label>
+                <input 
+                  type="text"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="请输入班级名称"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  年级
+                </label>
+                <select 
+                  value={selectedGradeForClass}
+                  onChange={(e) => setSelectedGradeForClass(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="">请选择年级</option>
+                  {gradesForCreateClass.map(grade => (
+                    <option key={grade.id} value={grade.id}>
+                      {grade.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  指导教师（可选）
+                </label>
+                <select 
+                  value={selectedInstructorForClass}
+                  onChange={(e) => setSelectedInstructorForClass(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="">请选择指导教师</option>
+                  {teachersForInstructor.map(teacher => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.full_name || teacher.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button 
+                onClick={handleCloseCreateClassModal}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                取消
+              </button>
+              <button 
+                onClick={handleCreateClass}
+                disabled={loadingCreateClass}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingCreateClass ? '创建中...' : '创建班级'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 添加用户弹窗 */}
+      {showAddUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">添加用户</h3>
+              <button 
+                onClick={handleCloseAddUserModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  用户名
+                </label>
+                <input 
+                  type="text"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="请输入用户名"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  姓名
+                </label>
+                <input 
+                  type="text"
+                  value={newUser.full_name}
+                  onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="请输入真实姓名"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  邮箱
+                </label>
+                <input 
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="请输入邮箱"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  密码
+                </label>
+                <input 
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="请输入密码"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  角色
+                </label>
+                <select 
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({...newUser, role: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value={1}>学生</option>
+                  <option value={2}>教师</option>
+                  <option value={3}>管理员</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  分配班级
+                </label>
+                <select 
+                  value={newUser.class_id}
+                  onChange={(e) => setNewUser({...newUser, class_id: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="">请选择班级</option>
+                  {classesForUser.map(cls => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button 
+                onClick={handleCloseAddUserModal}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                取消
+              </button>
+              <button 
+                onClick={handleAddUser}
+                disabled={loadingAddUser}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingAddUser ? '添加中...' : '添加用户'}
               </button>
             </div>
           </div>
