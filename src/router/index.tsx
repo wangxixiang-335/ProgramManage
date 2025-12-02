@@ -26,6 +26,8 @@ import P_achievement_library_management from '../pages/p-achievement_library_man
 import P_knowledge_base_management from '../pages/p-knowledge_base_management';
 import P_carousel_management from '../pages/p-carousel_management';
 import P_user_management from '../pages/p-user_management';
+import P_image_upload_demo from '../pages/p-image-upload-demo';
+import P_image_upload_example from '../pages/p-image-upload-example';
 import NotFoundPage from './NotFoundPage';
 import ErrorPage from './ErrorPage';
 
@@ -269,6 +271,24 @@ const router = createBrowserRouter([
     element: (
       <ErrorBoundary>
         <P_user_management />
+      </ErrorBoundary>
+    ),
+    errorElement: <ErrorPage />,
+  },
+      {
+    path: '/image-upload-demo',
+    element: (
+      <ErrorBoundary>
+        <P_image_upload_demo />
+      </ErrorBoundary>
+    ),
+    errorElement: <ErrorPage />,
+  },
+      {
+    path: '/image-upload-example',
+    element: (
+      <ErrorBoundary>
+        <P_image_upload_example />
       </ErrorBoundary>
     ),
     errorElement: <ErrorPage />,
