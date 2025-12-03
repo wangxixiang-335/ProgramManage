@@ -11,6 +11,7 @@ import {
   NUMBER_TO_STATUS,
   ACHIEVEMENT_TYPES,
   AchievementWithUsers,
+  AchievementAttachment,
   ApprovalResult,
   ApprovalRequest,
   ApprovalFilters,
@@ -984,6 +985,29 @@ export class AchievementService {
     } catch (error) {
       console.error('Error fetching achievement with users:', error);
       return { success: false, message: error instanceof Error ? error.message : '获取成果详情失败' };
+    }
+  }
+
+  // 获取成果附件
+  static async getAchievementAttachments(achievementId: string): Promise<{ success: boolean; data?: AchievementAttachment[]; message?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('achievement_attachments')
+        .select('*')
+        .eq('achievements_id', achievementId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        const errorMessage = typeof error === 'object' && error !== null && 'message' in error 
+          ? (error as { message: string }).message 
+          : String(error);
+        throw new Error(errorMessage);
+      }
+
+      return { success: true, data: data as AchievementAttachment[] || [] };
+    } catch (error) {
+      console.error('Error fetching achievement attachments:', error);
+      return { success: false, message: error instanceof Error ? error.message : '获取成果附件失败' };
     }
   }
 }

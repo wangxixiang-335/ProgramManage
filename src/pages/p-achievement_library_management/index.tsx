@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AchievementService } from '../../lib/achievementService';
-import { AchievementType, AchievementWithUsers, User } from '../../types/achievement';
+import { AchievementType, AchievementWithUsers, User, AchievementAttachment, NUMBER_TO_STATUS } from '../../types/achievement';
 import styles from './styles.module.css';
 
 interface AchievementDisplay {
@@ -20,10 +20,13 @@ const AchievementLibraryManagement: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('achievements');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10); // 每页显示10条
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>([]);
   const [achievements, setAchievements] = useState<AchievementDisplay[]>([]);
-  const [students, setStudents] = useState<User[]>([]);
-  const [teachers, setTeachers] = useState<User[]>([]);
+  const [filteredAchievements, setFilteredAchievements] = useState<any[]>([]); // 保存过滤后的原始数据
+  const [isSearching, setIsSearching] = useState(false); // 是否正在搜索状态
   const [loading, setLoading] = useState(false);
   
   // 搜索条件状态
@@ -34,18 +37,12 @@ const AchievementLibraryManagement: React.FC = () => {
     score_range: ''
   });
 
-  // 添加成果弹窗状态
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newAchievement, setNewAchievement] = useState({
-    title: '',
-    description: '',
-    type_id: '',
-    score: '',
-    publisher_id: '',
-    instructor_id: ''
-  });
+  // 成果详情弹窗状态
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithUsers | null>(null);
+  const [achievementAttachments, setAchievementAttachments] = useState<AchievementAttachment[]>([]);
 
-  // 加载成果类型、学生、教师和成果列表
+  // 加载成果类型和成果列表
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -53,11 +50,9 @@ const AchievementLibraryManagement: React.FC = () => {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      // 并行加载所有数据
-      const [typesResult, studentsResult, teachersResult, achievementsResult] = await Promise.all([
+      // 并行加载数据
+      const [typesResult, achievementsResult] = await Promise.all([
         AchievementService.getAchievementTypes(),
-        AchievementService.getUsersByRole(1), // 学生
-        AchievementService.getUsersByRole(2), // 教师
         AchievementService.getAllAchievements() // 所有成果
       ]);
       
@@ -65,16 +60,18 @@ const AchievementLibraryManagement: React.FC = () => {
         setAchievementTypes(typesResult.data);
       }
       
-      if (studentsResult.success && studentsResult.data) {
-        setStudents(studentsResult.data);
-      }
-      
-      if (teachersResult.success && teachersResult.data) {
-        setTeachers(teachersResult.data);
-      }
-      
       if (achievementsResult.success && achievementsResult.data) {
-        const displayData = achievementsResult.data.map((achievement: any) => ({
+        // 更新总数和页数
+        const total = achievementsResult.data.length;
+        setTotalItems(total);
+        setTotalPages(Math.ceil(total / pageSize));
+        
+        // 分页处理
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = achievementsResult.data.slice(startIndex, endIndex);
+        
+        const displayData = paginatedData.map((achievement: any) => ({
           id: achievement.id,
           title: achievement.title,
           score: achievement.score,
@@ -96,9 +93,18 @@ const AchievementLibraryManagement: React.FC = () => {
   const loadAchievements = async () => {
     setLoading(true);
     try {
-      const result = await AchievementService.getAllAchievements();
-      if (result.success && result.data) {
-        const displayData = result.data.map((achievement: any) => ({
+      // 如果正在搜索状态，使用过滤后的数据
+      if (isSearching && filteredAchievements.length > 0) {
+        const total = filteredAchievements.length;
+        setTotalItems(total);
+        setTotalPages(Math.ceil(total / pageSize));
+        
+        // 分页处理
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = filteredAchievements.slice(startIndex, endIndex);
+        
+        const displayData = paginatedData.map((achievement: any) => ({
           id: achievement.id,
           title: achievement.title,
           score: achievement.score,
@@ -108,6 +114,31 @@ const AchievementLibraryManagement: React.FC = () => {
           created_at: achievement.created_at
         }));
         setAchievements(displayData);
+      } else {
+        // 正常加载所有数据
+        const result = await AchievementService.getAllAchievements();
+        if (result.success && result.data) {
+          // 更新总数和页数
+          const total = result.data.length;
+          setTotalItems(total);
+          setTotalPages(Math.ceil(total / pageSize));
+          
+          // 分页处理
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const paginatedData = result.data.slice(startIndex, endIndex);
+          
+          const displayData = paginatedData.map((achievement: any) => ({
+            id: achievement.id,
+            title: achievement.title,
+            score: achievement.score,
+            type_name: achievement.achievement_types?.name || '',
+            student_name: achievement.users?.username || '',
+            instructor_name: achievement.instructor?.username || '',
+            created_at: achievement.created_at
+          }));
+          setAchievements(displayData);
+        }
       }
     } catch (error) {
       console.error('加载成果列表失败:', error);
@@ -137,13 +168,22 @@ const AchievementLibraryManagement: React.FC = () => {
         }
         
         if (searchConditions.score_range) {
-          const [min, max] = searchConditions.score_range.split('-').map(s => s.replace('+', ''));
           filteredData = filteredData.filter(a => {
-            if (!a.score) return false;
-            if (max) {
-              return a.score >= parseInt(min) && a.score <= parseInt(max);
-            } else {
-              return a.score >= parseInt(min);
+            const score = a.score || 0; // 如果没有分数，归为0分（60分以下）
+            
+            switch (searchConditions.score_range) {
+              case '90+':
+                return score >= 90;
+              case '80-89':
+                return score >= 80 && score <= 89;
+              case '70-79':
+                return score >= 70 && score <= 79;
+              case '60-69':
+                return score >= 60 && score <= 69;
+              case '60-':
+                return score < 60 || !a.score; // 60分以下或没有分数
+              default:
+                return true;
             }
           });
         }
@@ -165,7 +205,22 @@ const AchievementLibraryManagement: React.FC = () => {
           );
         }
         
-        const displayData = filteredData.map((achievement: any) => ({
+        // 保存过滤后的数据
+        setFilteredAchievements(filteredData);
+        setIsSearching(true);
+        
+        // 更新总数和页数
+        const total = filteredData.length;
+        setTotalItems(total);
+        setTotalPages(Math.ceil(total / pageSize));
+        setCurrentPage(1); // 搜索时重置到第一页
+        
+        // 显示第一页数据
+        const startIndex = 0;
+        const endIndex = pageSize;
+        const paginatedData = filteredData.slice(startIndex, endIndex);
+        
+        const displayData = paginatedData.map((achievement: any) => ({
           id: achievement.id,
           title: achievement.title,
           score: achievement.score,
@@ -219,26 +274,39 @@ const AchievementLibraryManagement: React.FC = () => {
       student_name: '',
       score_range: ''
     });
+    setIsSearching(false);
+    setFilteredAchievements([]);
+    setCurrentPage(1);
     loadAchievements(); // 重新加载所有数据
   };
 
-  // 添加成果
-  const handleAddAchievement = () => {
-    setShowAddModal(true);
-    setNewAchievement({
-      title: '',
-      description: '',
-      type_id: '',
-      score: '',
-      publisher_id: '',
-      instructor_id: ''
-    });
-  };
 
-  // 查看成果
-  const handleViewAchievement = (achievementId: string) => {
-    // 跳转到成果详情页面
-    window.open(`/achievement-detail/${achievementId}`, '_blank');
+
+  // 查看成果详情
+  const handleViewAchievement = async (achievementId: string) => {
+    setLoading(true);
+    try {
+      // 获取成果详情（包含所有用户信息）
+      const result = await AchievementService.getAchievementWithUsersById(achievementId);
+      if (result.success && result.data) {
+        setSelectedAchievement(result.data);
+        
+        // 获取成果附件
+        const attachmentsResult = await AchievementService.getAchievementAttachments(achievementId);
+        if (attachmentsResult.success) {
+          setAchievementAttachments(attachmentsResult.data || []);
+        }
+        
+        setShowDetailModal(true);
+      } else {
+        alert('获取成果详情失败: ' + result.message);
+      }
+    } catch (error) {
+      console.error('查看成果失败:', error);
+      alert('查看成果失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 删除成果
@@ -248,7 +316,26 @@ const AchievementLibraryManagement: React.FC = () => {
         const result = await AchievementService.deleteAchievement(achievementId);
         if (result.success) {
           alert('删除成功');
-          loadAchievements(); // 重新加载列表
+          
+          // 如果正在搜索状态，从过滤数据中移除
+          if (isSearching) {
+            const newFilteredData = filteredAchievements.filter(a => a.id !== achievementId);
+            setFilteredAchievements(newFilteredData);
+            
+            // 更新总数
+            const total = newFilteredData.length;
+            setTotalItems(total);
+            setTotalPages(Math.ceil(total / pageSize));
+            
+            // 如果当前页已经没有数据且不是第一页，则返回上一页
+            if (achievements.length === 1 && currentPage > 1) {
+              setCurrentPage(currentPage - 1);
+            } else {
+              loadAchievements(); // 否则重新加载当前页
+            }
+          } else {
+            loadAchievements(); // 重新加载列表
+          }
         } else {
           alert('删除失败: ' + result.message);
         }
@@ -262,9 +349,14 @@ const AchievementLibraryManagement: React.FC = () => {
   // 分页处理
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    console.log('跳转到页码:', page);
-    // 在实际应用中，这里会加载对应页码的数据
   };
+
+  // 当页码改变时重新加载数据
+  useEffect(() => {
+    if (currentPage > 0) {
+      loadAchievements();
+    }
+  }, [currentPage]);
 
   // 用户信息点击
   const handleUserProfileClick = () => {
@@ -287,35 +379,7 @@ const AchievementLibraryManagement: React.FC = () => {
     }
   };
 
-  // 提交新成果
-  const handleSubmitAchievement = async () => {
-    if (!newAchievement.title || !newAchievement.type_id || !newAchievement.publisher_id || !newAchievement.instructor_id) {
-      alert('请填写所有必填字段');
-      return;
-    }
 
-    try {
-      const result = await AchievementService.createAchievement({
-        title: newAchievement.title,
-        description: newAchievement.description,
-        type_id: newAchievement.type_id,
-        publisher_id: newAchievement.publisher_id,
-        instructor_id: newAchievement.instructor_id,
-        score: newAchievement.score ? parseInt(newAchievement.score) : undefined
-      }, true); // 直接发布，无需审批
-
-      if (result.success) {
-        alert('添加成功');
-        setShowAddModal(false);
-        loadAchievements(); // 重新加载列表
-      } else {
-        alert('添加失败: ' + result.message);
-      }
-    } catch (error) {
-      console.error('添加成果失败:', error);
-      alert('添加失败');
-    }
-  };
 
   return (
     <div className={styles.pageWrapper}>
@@ -554,17 +618,8 @@ const AchievementLibraryManagement: React.FC = () => {
           
           {/* 成果列表 */}
           <div className={`bg-bg-light rounded-xl shadow-card p-5 ${styles.fadeInDelay2}`}>
-            <div className="flex justify-between items-center mb-4">
+            <div className="mb-4">
               <h3 className="text-lg font-semibold text-text-primary">成果列表</h3>
-              <div className="flex items-center space-x-2">
-                <button 
-                className="px-4 py-2 bg-[#2E7D32] text-white rounded-lg hover:bg-[#1B5E20] transition-colors flex items-center"
-                onClick={handleAddAchievement}
-              >
-                  <i className="fas fa-plus mr-2"></i>
-                  <span>添加成果</span>
-                </button>
-              </div>
             </div>
             
             {/* 表格 */}
@@ -632,7 +687,7 @@ const AchievementLibraryManagement: React.FC = () => {
             {/* 分页 */}
             <div className="flex justify-between items-center mt-6">
               <div className="text-sm text-text-muted">
-                显示 1-5 条，共 76 条
+                显示 {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalItems)} 条，共 {totalItems} 条
               </div>
               <div className="flex items-center space-x-1">
                 <button 
@@ -642,35 +697,116 @@ const AchievementLibraryManagement: React.FC = () => {
                 >
                   <i className="fas fa-chevron-left text-xs"></i>
                 </button>
+                
+                {/* 动态生成页码按钮 */}
+                {(() => {
+                  const pages = [];
+                  const maxVisiblePages = 5; // 最多显示5个页码
+                  
+                  if (totalPages <= maxVisiblePages) {
+                    // 如果总页数小于等于最大显示页数，显示所有页码
+                    for (let i = 1; i <= totalPages; i++) {
+                      pages.push(
+                        <button 
+                          key={i}
+                          className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === i ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                          onClick={() => handlePageChange(i)}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                  } else {
+                    // 如果总页数较多，智能显示页码
+                    if (currentPage <= 3) {
+                      // 当前页在前面，显示1...3...
+                      for (let i = 1; i <= 3; i++) {
+                        pages.push(
+                          <button 
+                            key={i}
+                            className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === i ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                            onClick={() => handlePageChange(i)}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                      pages.push(<span key="ellipsis1" className="px-2 text-text-muted">...</span>);
+                      pages.push(
+                        <button 
+                          key={totalPages}
+                          className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === totalPages ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                          onClick={() => handlePageChange(totalPages)}
+                        >
+                          {totalPages}
+                        </button>
+                      );
+                    } else if (currentPage >= totalPages - 2) {
+                      // 当前页在后面，显示...最后3页
+                      pages.push(
+                        <button 
+                          key={1}
+                          className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === 1 ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                          onClick={() => handlePageChange(1)}
+                        >
+                          1
+                        </button>
+                      );
+                      pages.push(<span key="ellipsis2" className="px-2 text-text-muted">...</span>);
+                      for (let i = totalPages - 2; i <= totalPages; i++) {
+                        pages.push(
+                          <button 
+                            key={i}
+                            className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === i ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                            onClick={() => handlePageChange(i)}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                    } else {
+                      // 当前页在中间，显示1...当前-1,当前,当前+1...最后页
+                      pages.push(
+                        <button 
+                          key={1}
+                          className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === 1 ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                          onClick={() => handlePageChange(1)}
+                        >
+                          1
+                        </button>
+                      );
+                      pages.push(<span key="ellipsis3" className="px-2 text-text-muted">...</span>);
+                      for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                        pages.push(
+                          <button 
+                            key={i}
+                            className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === i ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                            onClick={() => handlePageChange(i)}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                      pages.push(<span key="ellipsis4" className="px-2 text-text-muted">...</span>);
+                      pages.push(
+                        <button 
+                          key={totalPages}
+                          className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === totalPages ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
+                          onClick={() => handlePageChange(totalPages)}
+                        >
+                          {totalPages}
+                        </button>
+                      );
+                    }
+                  }
+                  
+                  return pages;
+                })()}
+                
                 <button 
-                  className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === 1 ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
-                  onClick={() => handlePageChange(1)}
-                >
-                  1
-                </button>
-                <button 
-                  className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === 2 ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
-                  onClick={() => handlePageChange(2)}
-                >
-                  2
-                </button>
-                <button 
-                  className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === 3 ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
-                  onClick={() => handlePageChange(3)}
-                >
-                  3
-                </button>
-                <span className="px-2 text-text-muted">...</span>
-                <button 
-                  className={`px-3 py-1 border rounded-lg transition-colors ${currentPage === 16 ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-border-light text-text-secondary hover:bg-gray-50'}`}
-                  onClick={() => handlePageChange(16)}
-                >
-                  16
-                </button>
-                <button 
-                  className={`px-3 py-1 border border-border-light rounded-lg text-text-secondary hover:bg-gray-50 transition-colors ${currentPage === 16 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={currentPage === 16}
-                  onClick={() => currentPage < 16 && handlePageChange(currentPage + 1)}
+                  className={`px-3 py-1 border border-border-light rounded-lg text-text-secondary hover:bg-gray-50 transition-colors ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={currentPage === totalPages}
+                  onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
                 >
                   <i className="fas fa-chevron-right text-xs"></i>
                 </button>
@@ -680,134 +816,162 @@ const AchievementLibraryManagement: React.FC = () => {
         </main>
       </div>
       
-      {/* 添加成果弹窗 */}
-      {showAddModal && (
+      {/* 成果详情弹窗 */}
+      {showDetailModal && selectedAchievement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">添加成果</h3>
+          <div className="bg-white rounded-xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-text-primary">成果详情</h3>
+              <button 
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+                onClick={() => setShowDetailModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
             
-            <div className="space-y-4">
-              {/* 成果名称 */}
-              <div className="space-y-2">
-                <label htmlFor="achievement-title" className="block text-sm font-medium text-text-secondary">
-                  成果名称 <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  id="achievement-title" 
-                  placeholder="输入成果名称" 
-                  value={newAchievement.title}
-                  onChange={(e) => setNewAchievement({...newAchievement, title: e.target.value})}
-                  className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent"
-                />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 左侧：基本信息 */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-text-primary border-b pb-2">基本信息</h4>
+                
+                {/* 成果名称 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">成果名称</label>
+                  <div className="text-base text-text-primary font-medium">{selectedAchievement.title}</div>
+                </div>
+                
+                {/* 成果类型 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">成果类型</label>
+                  <div className="text-base text-text-primary">{selectedAchievement.achievement_type?.name || '-'}</div>
+                </div>
+                
+                {/* 状态 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">状态</label>
+                  <div className="text-base">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      selectedAchievement.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      selectedAchievement.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      selectedAchievement.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {selectedAchievement.status === 'approved' ? '已通过' :
+                       selectedAchievement.status === 'pending' ? '待审核' :
+                       selectedAchievement.status === 'rejected' ? '已拒绝' : '草稿'}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* 分数 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">分数</label>
+                  <div className="text-base text-text-primary">{selectedAchievement.score || '-'}</div>
+                </div>
+                
+                {/* 学生姓名 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">学生姓名</label>
+                  <div className="text-base text-text-primary">{selectedAchievement.publisher?.username || '-'}</div>
+                </div>
+                
+                {/* 指导老师 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">指导老师</label>
+                  <div className="text-base text-text-primary">{selectedAchievement.instructor?.username || '-'}</div>
+                </div>
+                
+                {/* 协作者 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">协作者</label>
+                  <div className="text-base text-text-primary">{selectedAchievement.parent?.username || '-'}</div>
+                </div>
+                
+                {/* 提交时间 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">提交时间</label>
+                  <div className="text-base text-text-primary">
+                    {new Date(selectedAchievement.created_at).toLocaleString()}
+                  </div>
+                </div>
               </div>
               
-              {/* 成果描述 */}
-              <div className="space-y-2">
-                <label htmlFor="achievement-description" className="block text-sm font-medium text-text-secondary">
-                  成果描述
-                </label>
-                <textarea 
-                  id="achievement-description" 
-                  placeholder="输入成果描述" 
-                  rows={3}
-                  value={newAchievement.description}
-                  onChange={(e) => setNewAchievement({...newAchievement, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent"
-                />
-              </div>
-              
-              {/* 成果类型 */}
-              <div className="space-y-2">
-                <label htmlFor="achievement-type" className="block text-sm font-medium text-text-secondary">
-                  成果类型 <span className="text-red-500">*</span>
-                </label>
-                <select 
-                  id="achievement-type" 
-                  value={newAchievement.type_id}
-                  onChange={(e) => setNewAchievement({...newAchievement, type_id: e.target.value})}
-                  className={`w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent ${styles.customSelect}`}
-                >
-                  <option value="">请选择类型</option>
-                  {achievementTypes.map(type => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* 分数 */}
-              <div className="space-y-2">
-                <label htmlFor="achievement-score" className="block text-sm font-medium text-text-secondary">
-                  分数
-                </label>
-                <input 
-                  type="number" 
-                  id="achievement-score" 
-                  placeholder="输入分数" 
-                  min="0"
-                  max="100"
-                  value={newAchievement.score}
-                  onChange={(e) => setNewAchievement({...newAchievement, score: e.target.value})}
-                  className="w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent"
-                />
-              </div>
-              
-              {/* 学生选择 */}
-              <div className="space-y-2">
-                <label htmlFor="achievement-student" className="block text-sm font-medium text-text-secondary">
-                  学生姓名 <span className="text-red-500">*</span>
-                </label>
-                <select 
-                  id="achievement-student" 
-                  value={newAchievement.publisher_id}
-                  onChange={(e) => setNewAchievement({...newAchievement, publisher_id: e.target.value})}
-                  className={`w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent ${styles.customSelect}`}
-                >
-                  <option value="">请选择学生</option>
-                  {students.map(student => (
-                    <option key={student.id} value={student.id}>
-                      {student.full_name || student.username}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* 指导老师选择 */}
-              <div className="space-y-2">
-                <label htmlFor="achievement-teacher" className="block text-sm font-medium text-text-secondary">
-                  指导老师 <span className="text-red-500">*</span>
-                </label>
-                <select 
-                  id="achievement-teacher" 
-                  value={newAchievement.instructor_id}
-                  onChange={(e) => setNewAchievement({...newAchievement, instructor_id: e.target.value})}
-                  className={`w-full px-3 py-2 border border-border-light rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent ${styles.customSelect}`}
-                >
-                  <option value="">请选择指导老师</option>
-                  {teachers.map(teacher => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.full_name || teacher.username}
-                    </option>
-                  ))}
-                </select>
+              {/* 右侧：媒体和描述 */}
+              <div className="space-y-4">
+                {/* 封面图 */}
+                {selectedAchievement.cover_url && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">封面图</label>
+                    <div className="border rounded-lg overflow-hidden">
+                      <img 
+                        src={selectedAchievement.cover_url} 
+                        alt="封面图" 
+                        className="w-full h-64 object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* 视频 */}
+                {selectedAchievement.video_url && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">视频</label>
+                    <div className="border rounded-lg overflow-hidden">
+                      <video 
+                        src={selectedAchievement.video_url}
+                        controls
+                        className="w-full h-64"
+                      >
+                        您的浏览器不支持视频播放
+                      </video>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 成果描述 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">成果描述</label>
+                  <div className="border rounded-lg p-4 bg-gray-50 text-text-primary">
+                    {selectedAchievement.description || '暂无描述'}
+                  </div>
+                </div>
+                
+                {/* 成果附件 */}
+                {achievementAttachments.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">成果附件</label>
+                    <div className="space-y-2">
+                      {achievementAttachments.map((attachment, index) => (
+                        <div key={attachment.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                          <div className="flex items-center space-x-2">
+                            <i className="fas fa-paperclip text-gray-500"></i>
+                            <span className="text-sm text-text-primary">{attachment.file_name}</span>
+                          </div>
+                          <button 
+                            className="text-[#2E7D32] hover:text-[#1B5E20] text-sm"
+                            onClick={() => window.open(attachment.file_url, '_blank')}
+                          >
+                            <i className="fas fa-download"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
-            {/* 按钮组 */}
-            <div className="flex justify-end space-x-2 mt-6">
+            {/* 关闭按钮 */}
+            <div className="flex justify-end mt-6">
               <button 
-                className="px-4 py-2 border border-border-light rounded-lg text-text-secondary hover:bg-gray-50 transition-colors"
-                onClick={() => setShowAddModal(false)}
+                className="px-6 py-2 bg-[#2E7D32] text-white rounded-lg hover:bg-[#1B5E20] transition-colors"
+                onClick={() => setShowDetailModal(false)}
               >
-                取消
-              </button>
-              <button 
-                className="px-4 py-2 bg-[#2E7D32] text-white rounded-lg hover:bg-[#1B5E20] transition-colors"
-                onClick={handleSubmitAchievement}
-              >
-                添加
+                关闭
               </button>
             </div>
           </div>

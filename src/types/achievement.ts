@@ -91,6 +91,16 @@ export interface User {
   created_at: string;
 }
 
+// 成果附件
+export interface AchievementAttachment {
+  id: string;
+  achievements_id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  created_at: string;
+}
+
 // 成果类型选项
 export const ACHIEVEMENT_TYPES: AchievementType[] = [
   { id: "0cc2c0c3-00ec-4d9c-a8f3-f92f77189efb", name: "其他", created_at: "2025-11-21 02:41:11.193907+00" },
