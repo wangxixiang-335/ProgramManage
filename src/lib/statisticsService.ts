@@ -53,8 +53,8 @@ export class StatisticsService {
       const passedProjects = achievements?.filter(a => a.status === 2 || a.status === 'approved')?.length || 0; // 2 = approved 或 'approved'
       const passedScores = achievements?.filter(a => (a.status === 2 || a.status === 'approved') && a.score !== null)?.map(a => a.score) || [];
       const totalScore = passedScores.reduce((sum, score) => sum + score, 0);
-      // 平均成绩 = 通过的项目的分数和除以该学生发布的所有成果的数量
-      const averageScore = totalProjects > 0 ? totalScore / totalProjects : 0;
+      // 平均成绩 = 通过的项目的分数和除以通过的成果数量（不是总成果数量）
+      const averageScore = passedProjects > 0 ? totalScore / passedProjects : 0;
       // 项目完成率 = 通过的项目数量除以该学生发布的所有成果的数量
       const completionRate = totalProjects > 0 ? (passedProjects / totalProjects) * 100 : 0;
 
@@ -69,14 +69,21 @@ export class StatisticsService {
       const typeLabels = Object.keys(typeCount);
       const typeData = Object.values(typeCount);
 
-      // 准备成绩趋势数据（按时间排序）
+      // 准备成绩趋势数据（按时间排序）- 只包含已通过的成果
       const scoreData = achievements
-        ?.filter(a => a.score !== null)
+        ?.filter(a => (a.status === 2 || a.status === 'approved') && a.score !== null)
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
         .map((a, index) => ({
           score: a.score!,
           label: `第${index + 1}次`
         })) || [];
+
+      console.log('📈 成绩趋势数据详情:', {
+        原始成果数量: achievements?.length || 0,
+        通过审核的成果数量: passedProjects,
+        有分数的成果数量: scoreData.length,
+        成绩数据: scoreData.map(d => ({ 标签: d.label, 分数: d.score }))
+      });
 
       console.log('📊 计算出的统计数据:', {
         totalProjects,

@@ -28,10 +28,6 @@
   background-color: #FFFFFF;
 }
 
-.notificationItem:hover {
-  background-color: #F7FAFC;
-  transition: background-color 0.2s ease;
-}
 
 .projectItem:hover {
   background-color: #F7FAFC;
