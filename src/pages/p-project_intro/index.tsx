@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { AchievementService } from '../../lib/achievementService';
 import { AchievementType, User } from '../../types/achievement';
 import styles from './styles.module.css';
@@ -37,6 +38,9 @@ const ProjectIntroPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  
+  // 用户信息状态
+  const [userName, setUserName] = useState<string>('用户');
   
   // 表单状态
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
@@ -77,6 +81,7 @@ const ProjectIntroPage: React.FC = () => {
       console.log('检测到编辑模式，成果ID:', editId);
     }
     
+    fetchUserInfo();
     loadAchievementTypes();
     loadInstructors();
     loadCollaboratorUsers();
@@ -631,6 +636,30 @@ const ProjectIntroPage: React.FC = () => {
     }
   };
 
+  // 获取用户信息
+  const fetchUserInfo = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('full_name, username')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('获取用户信息失败:', error);
+        return;
+      }
+
+      if (data) {
+        setUserName(data.full_name || data.username || '用户');
+      }
+    } catch (error) {
+      console.error('获取用户信息异常:', error);
+    }
+  };
+
   // 退出登录
   const handleLogout = () => {
     navigate('/login');
@@ -735,7 +764,7 @@ const ProjectIntroPage: React.FC = () => {
                 alt="用户头像" 
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="text-sm font-medium text-text-primary">{user?.username || '用户'}</span>
+              <span className="text-sm font-medium text-text-primary">{userName}</span>
               <i className="fas fa-chevron-down text-xs text-text-muted"></i>
             </div>
           </Link>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import styles from './styles.module.css';
 
 const HomePage: React.FC = () => {
@@ -13,6 +14,7 @@ const HomePage: React.FC = () => {
   const [projectSearchTerm, setProjectSearchTerm] = useState<string>('');
   const [projectTypeFilter, setProjectTypeFilter] = useState<string>('');
   const [activePage, setActivePage] = useState<number>(1);
+  const [userName, setUserName] = useState<string>('用户');
 
   useEffect(() => {
     const originalTitle = document.title;
@@ -29,6 +31,10 @@ const HomePage: React.FC = () => {
     });
     setCurrentDate(date);
   }, []);
+
+  useEffect(() => {
+    fetchUserInfo();
+  }, [user?.id]);
 
 
 
@@ -52,6 +58,30 @@ const HomePage: React.FC = () => {
 
   const handleUserAvatarClick = () => {
     navigate('/personal-center');
+  };
+
+  // 获取用户信息
+  const fetchUserInfo = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('full_name, username')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('获取用户信息失败:', error);
+        return;
+      }
+
+      if (data) {
+        setUserName(data.full_name || data.username || '用户');
+      }
+    } catch (error) {
+      console.error('获取用户信息异常:', error);
+    }
   };
 
   const handleLogout = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -103,7 +133,7 @@ const HomePage: React.FC = () => {
                 alt="用户头像" 
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="text-sm font-medium text-text-primary">张同学</span>
+              <span className="text-sm font-medium text-text-primary">{userName}</span>
               <i className="fas fa-chevron-down text-xs text-text-muted"></i>
             </div>
           </div>

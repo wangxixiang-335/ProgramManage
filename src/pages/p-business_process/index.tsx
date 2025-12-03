@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { AchievementService } from '../../lib/achievementService';
 import { Achievement, User } from '../../types/achievement';
 import styles from './styles.module.css';
@@ -10,6 +11,7 @@ import styles from './styles.module.css';
 const BusinessProcessPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [userName, setUserName] = useState<string>('用户');
   const [globalSearchValue, setGlobalSearchValue] = useState('');
   const [achievementSearchValue, setAchievementSearchValue] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
@@ -27,6 +29,9 @@ const BusinessProcessPage: React.FC = () => {
     const loadStudentAchievements = async () => {
       try {
         setIsLoading(true);
+        
+        // 获取用户信息
+        await fetchUserInfo();
         
         // 获取当前用户ID
         const currentUserId = String(user?.id || localStorage.getItem('userId') || '');
@@ -201,6 +206,30 @@ const BusinessProcessPage: React.FC = () => {
     }
   };
 
+  // 获取用户信息
+  const fetchUserInfo = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('full_name, username')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('获取用户信息失败:', error);
+        return;
+      }
+
+      if (data) {
+        setUserName(data.full_name || data.username || '用户');
+      }
+    } catch (error) {
+      console.error('获取用户信息异常:', error);
+    }
+  };
+
   // 退出登录功能
   const handleLogout = () => {
     localStorage.removeItem('userId');
@@ -250,7 +279,7 @@ const BusinessProcessPage: React.FC = () => {
                 alt="用户头像" 
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="text-sm font-medium text-text-primary">{user?.username || '用户'}</span>
+              <span className="text-sm font-medium text-text-primary">{userName}</span>
               <i className="fas fa-chevron-down text-xs text-text-muted"></i>
             </div>
           </div>
