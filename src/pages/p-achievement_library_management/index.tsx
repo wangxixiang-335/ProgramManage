@@ -816,11 +816,12 @@ const AchievementLibraryManagement: React.FC = () => {
         </main>
       </div>
       
-      {/* 成果详情弹窗 */}
+            {/* 成果详情弹窗 */}
       {showDetailModal && selectedAchievement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
+            {/* 弹窗标题栏 */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-bold text-text-primary">成果详情</h3>
               <button 
                 className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -830,143 +831,141 @@ const AchievementLibraryManagement: React.FC = () => {
               </button>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 左侧：基本信息 */}
-              <div className="space-y-4">
-                <h4 className="text-lg font-semibold text-text-primary border-b pb-2">基本信息</h4>
-                
-                {/* 成果名称 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">成果名称</label>
-                  <div className="text-base text-text-primary font-medium">{selectedAchievement.title}</div>
-                </div>
-                
-                {/* 成果类型 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">成果类型</label>
-                  <div className="text-base text-text-primary">{selectedAchievement.achievement_type?.name || '-'}</div>
-                </div>
-                
-                {/* 状态 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">状态</label>
-                  <div className="text-base">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      selectedAchievement.status === 'approved' ? 'bg-green-100 text-green-800' :
-                      selectedAchievement.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      selectedAchievement.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {selectedAchievement.status === 'approved' ? '已通过' :
-                       selectedAchievement.status === 'pending' ? '待审核' :
-                       selectedAchievement.status === 'rejected' ? '已拒绝' : '草稿'}
-                    </span>
+            {/* 内容区域 */}
+            <div className="p-6">
+              {/* 1. 成果详情 - 基本信息 */}
+              <div className="mb-8">
+                <h4 className="text-lg font-semibold text-text-primary mb-4 pb-2 border-b">成果详情</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">成果名称</label>
+                    <div className="text-base text-text-primary font-medium">{selectedAchievement.title}</div>
                   </div>
-                </div>
-                
-                {/* 分数 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">分数</label>
-                  <div className="text-base text-text-primary">{selectedAchievement.score || '-'}</div>
-                </div>
-                
-                {/* 学生姓名 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">学生姓名</label>
-                  <div className="text-base text-text-primary">{selectedAchievement.publisher?.username || '-'}</div>
-                </div>
-                
-                {/* 指导老师 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">指导老师</label>
-                  <div className="text-base text-text-primary">{selectedAchievement.instructor?.username || '-'}</div>
-                </div>
-                
-                {/* 协作者 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">协作者</label>
-                  <div className="text-base text-text-primary">{selectedAchievement.parent?.username || '-'}</div>
-                </div>
-                
-                {/* 提交时间 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">提交时间</label>
-                  <div className="text-base text-text-primary">
-                    {new Date(selectedAchievement.created_at).toLocaleString()}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">成果类型</label>
+                    <div className="text-base text-text-primary">{selectedAchievement.achievement_type?.name || selectedAchievement.type?.name || '-'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">学生姓名</label>
+                    <div className="text-base text-text-primary">{selectedAchievement.publisher?.username || '-'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">指导教师</label>
+                    <div className="text-base text-text-primary">{selectedAchievement.instructor?.username || '-'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">状态</label>
+                    <div className="text-base">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        selectedAchievement.status === 'approved' ? 'bg-green-100 text-green-800' :
+                        selectedAchievement.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        selectedAchievement.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedAchievement.status === 'approved' ? '已通过' :
+                         selectedAchievement.status === 'pending' ? '待审核' :
+                         selectedAchievement.status === 'rejected' ? '已拒绝' : '草稿'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">评分</label>
+                    <div className="text-base text-text-primary font-medium">{selectedAchievement.score || '-'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">提交时间</label>
+                    <div className="text-base text-text-primary">
+                      {new Date(selectedAchievement.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">协作者</label>
+                    <div className="text-base text-text-primary">{selectedAchievement.parent?.username || '-'}</div>
                   </div>
                 </div>
               </div>
-              
-              {/* 右侧：媒体和描述 */}
-              <div className="space-y-4">
-                {/* 封面图 */}
-                {selectedAchievement.cover_url && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">封面图</label>
-                    <div className="border rounded-lg overflow-hidden">
-                      <img 
-                        src={selectedAchievement.cover_url} 
-                        alt="封面图" 
-                        className="w-full h-64 object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
+
+              {/* 2. 封面图片 - 占满整个横向详情页面 */}
+              {selectedAchievement.cover_url && (
+                <div className="mb-8">
+                  <h4 className="text-lg font-semibold text-text-primary mb-4 pb-2 border-b">封面图片</h4>
+                  <div className="w-full border rounded-lg overflow-hidden">
+                    <img 
+                      src={selectedAchievement.cover_url} 
+                      alt="封面图" 
+                      className="w-full h-auto max-h-96 object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
                   </div>
-                )}
-                
-                {/* 视频 */}
-                {selectedAchievement.video_url && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">视频</label>
-                    <div className="border rounded-lg overflow-hidden">
-                      <video 
-                        src={selectedAchievement.video_url}
-                        controls
-                        className="w-full h-64"
-                      >
-                        您的浏览器不支持视频播放
-                      </video>
-                    </div>
-                  </div>
-                )}
-                
-                {/* 成果描述 */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">成果描述</label>
+                </div>
+              )}
+
+              {/* 3. 成果描述 - 富文本解析图片 */}
+              {selectedAchievement.description && (
+                <div className="mb-8">
+                  <h4 className="text-lg font-semibold text-text-primary mb-4 pb-2 border-b">成果描述</h4>
                   <div className="border rounded-lg p-4 bg-gray-50 text-text-primary">
-                    {selectedAchievement.description || '暂无描述'}
+                    <div 
+                      className="prose max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: selectedAchievement.description.replace(
+                          /<img([^>]*)src="([^"]*)"([^>]*)>/g,
+                          '<img$1src="$2"$3 style="max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0;" />'
+                        )
+                      }}
+                    />
                   </div>
                 </div>
-                
-                {/* 成果附件 */}
-                {achievementAttachments.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">成果附件</label>
-                    <div className="space-y-2">
-                      {achievementAttachments.map((attachment, index) => (
-                        <div key={attachment.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                          <div className="flex items-center space-x-2">
-                            <i className="fas fa-paperclip text-gray-500"></i>
-                            <span className="text-sm text-text-primary">{attachment.file_name}</span>
-                          </div>
-                          <button 
-                            className="text-[#2E7D32] hover:text-[#1B5E20] text-sm"
-                            onClick={() => window.open(attachment.file_url, '_blank')}
-                          >
-                            <i className="fas fa-download"></i>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+              )}
+
+              {/* 4. 演示视频 */}
+              {selectedAchievement.video_url && (
+                <div className="mb-8">
+                  <h4 className="text-lg font-semibold text-text-primary mb-4 pb-2 border-b">演示视频</h4>
+                  <div className="border rounded-lg overflow-hidden">
+                    <video 
+                      src={selectedAchievement.video_url}
+                      controls
+                      className="w-full h-auto max-h-96"
+                    >
+                      您的浏览器不支持视频播放
+                    </video>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* 5. 附件 */}
+              {achievementAttachments.length > 0 && (
+                <div className="mb-8">
+                  <h4 className="text-lg font-semibold text-text-primary mb-4 pb-2 border-b">附件</h4>
+                  <div className="space-y-2">
+                    {achievementAttachments.map((attachment) => (
+                      <div key={attachment.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <i className="fas fa-paperclip text-gray-500"></i>
+                          <span className="text-sm text-text-primary font-medium">{attachment.file_name}</span>
+                          <span className="text-xs text-text-muted bg-gray-200 px-2 py-1 rounded">
+                            {attachment.file_type || 'file'}
+                          </span>
+                        </div>
+                        <button 
+                          className="px-3 py-1 text-[#2E7D32] hover:text-[#1B5E20] bg-green-50 hover:bg-green-100 rounded-lg text-sm flex items-center space-x-1 transition-colors"
+                          onClick={() => window.open(attachment.file_url, '_blank')}
+                        >
+                          <i className="fas fa-download"></i>
+                          <span>查看</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* 关闭按钮 */}
-            <div className="flex justify-end mt-6">
+            <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end">
               <button 
                 className="px-6 py-2 bg-[#2E7D32] text-white rounded-lg hover:bg-[#1B5E20] transition-colors"
                 onClick={() => setShowDetailModal(false)}
