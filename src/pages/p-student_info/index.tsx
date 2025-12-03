@@ -202,10 +202,10 @@ const StudentInfoPage: React.FC = () => {
             scales: {
               y: {
                 beginAtZero: false,
-                min: 70,
-                max: 100,
+                suggestedMin: 50,
+                suggestedMax: 100,
                 ticks: {
-                  stepSize: 5
+                  stepSize: 10
                 },
                 grid: {
                   color: 'rgba(0, 0, 0, 0.05)'
@@ -548,8 +548,8 @@ const StudentInfoPage: React.FC = () => {
                     <div className="text-sm text-text-muted">及格率</div>
                     <div className="text-2xl font-bold text-purple-600">
                       {loading ? '...' : (
-                        stats?.scoreTrend.scores.length > 0 
-                          ? ((stats.scoreTrend.scores.filter(score => score >= 60).length / stats.scoreTrend.scores.length) * 100).toFixed(0) + '%'
+                        stats?.studentStats?.totalProjects > 0 && stats?.studentStats?.completionRate
+                          ? stats.studentStats.completionRate.toFixed(0) + '%'
                           : '0%'
                       )}
                     </div>
