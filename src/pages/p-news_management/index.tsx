@@ -89,18 +89,18 @@ const NewsManagement: React.FC = () => {
       
       // 如果API失败，使用备用静态数据
       const fallbackCategories: NewsCategory[] = [
-        {"idx":0,"id":"292869b1-2083-48ab-a236-23fe38fbee04","name":"通知公告","created_at":"2025-11-21 02:41:11.193907+00"},
-        {"idx":1,"id":"6799def2-0140-4529-b0cf-9d4ac51f7ec2","name":"学生作品","created_at":"2025-11-21 02:41:11.193907+00"},
-        {"idx":2,"id":"7f463220-3b2d-4162-a36d-45059b4c5624","name":"师资力量","created_at":"2025-11-21 02:41:11.193907+00"},
-        {"idx":3,"id":"e3293699-59b9-459b-a597-e9bf713434d5","name":"学院动态","created_at":"2025-11-21 02:41:11.193907+00"},
-        {"idx":4,"id":"fdf48745-bf37-4e44-89ea-6bdf715d6bb5","name":"活动赛事","created_at":"2025-11-21 02:41:11.193907+00"}
+        {"id":"292869b1-2083-48ab-a236-23fe38fbee04","name":"通知公告","created_at":"2025-11-21 02:41:11.193907+00"},
+        {"id":"6799def2-0140-4529-b0cf-9d4ac51f7ec2","name":"学生作品","created_at":"2025-11-21 02:41:11.193907+00"},
+        {"id":"7f463220-3b2d-4162-a36d-45059b4c5624","name":"师资力量","created_at":"2025-11-21 02:41:11.193907+00"},
+        {"id":"e3293699-59b9-459b-a597-e9bf713434d5","name":"学院动态","created_at":"2025-11-21 02:41:11.193907+00"},
+        {"id":"fdf48745-bf37-4e44-89ea-6bdf715d6bb5","name":"活动赛事","created_at":"2025-11-21 02:41:11.193907+00"}
       ];
       
       const fallbackNews: NewsItem[] = [
     
     
     
-        {"idx":3,"id":"f32d53fd-ec28-4e8b-835d-7ab9d6f1cd3c","title":"我院学子在创新设计大赛中斩获佳绩","content":"在2024年全国大学生创新设计大赛中，我院学生团队的作品\u0022智能垃圾分类系统\u0022获得全国二等奖。该作品运用人工智能技术实现垃圾分类的智能化识别和处理，具有良好的实用性和推广价值。团队成员包括软件工程专业的张明、李华等同学，他们在导师指导下历时半年完成。","category_id":"6799def2-0140-4529-b0cf-9d4ac51f7ec2","is_top":false,"published_at":"2024-07-10 15:30:00+00","is_pinned":false,"image_url":"创新.png"}
+        {"id":"f32d53fd-ec28-4e8b-835d-7ab9d6f1cd3c","title":"我院学子在创新设计大赛中斩获佳绩","content":"在2024年全国大学生创新设计大赛中，我院学生团队的作品\u0022智能垃圾分类系统\u0022获得全国二等奖。该作品运用人工智能技术实现垃圾分类的智能化识别和处理，具有良好的实用性和推广价值。团队成员包括软件工程专业的张明、李华等同学，他们在导师指导下历时半年完成。","category_id":"6799def2-0140-4529-b0cf-9d4ac51f7ec2","is_top":false,"published_at":"2024-07-10 15:30:00+00","is_pinned":false,"image_url":"创新.png"}
       ];
       
       setNewsCategories(fallbackCategories);
@@ -441,9 +441,10 @@ const NewsManagement: React.FC = () => {
         );
       } else {
         const newId = String(Date.now());
-        const newNews: NewsItem = {
-          idx: newsList.length,
-          id: newId,
+        // 本地状态临时对象
+        // 实际的id会由Supabase自动生成
+        const tempNews: NewsItem = {
+          id: newId,       // 仅用于本地显示
           title: newsTitle,
           content: newsContent,
           category_id: newsCategory,

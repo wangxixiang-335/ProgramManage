@@ -11,7 +11,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // 新闻分类表接口
 export interface NewsCategory {
-  idx: number;
   id: string;
   name: string;
   created_at: string;
@@ -19,7 +18,6 @@ export interface NewsCategory {
 
 // 新闻表接口
 export interface NewsItem {
-  idx: number;
   id: string;
   title: string;
   content: string;

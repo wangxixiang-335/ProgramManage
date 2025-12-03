@@ -103,7 +103,6 @@ export const createNews = async (newsData: NewsFormData): Promise<NewsItem> => {
         published_at: new Date().toISOString(),
         is_top: newsData.is_top || false,
         is_pinned: newsData.is_pinned || false,
-        idx: 0, // Supabase会自动处理这个字段
       })
       .select()
       .single();
