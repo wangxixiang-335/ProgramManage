@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Chart, registerables } from 'chart.js';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { StatisticsService, StatisticsData } from '../../lib/statisticsService';
 import styles from './styles.module.css';
 
@@ -12,6 +13,7 @@ Chart.register(...registerables);
 const StudentInfoPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [userName, setUserName] = useState<string>('用户');
   const [globalSearchValue, setGlobalSearchValue] = useState('');
   const [selectedTimeRange, setSelectedTimeRange] = useState('semester');
   const [lastUpdateTime, setLastUpdateTime] = useState('');
@@ -40,6 +42,7 @@ const StudentInfoPage: React.FC = () => {
     const loadStatistics = async () => {
       try {
         setLoading(true);
+        await fetchUserInfo();
         const statsData = await StatisticsService.getStudentStatistics();
         console.log('📊 获取到的学生统计数据:', statsData);
         setStats(statsData);
@@ -74,6 +77,30 @@ const StudentInfoPage: React.FC = () => {
       const searchTerm = globalSearchValue;
       console.log('全局搜索:', searchTerm);
       navigate(`/project-intro?search=${encodeURIComponent(searchTerm)}`);
+    }
+  };
+
+  // 获取用户信息
+  const fetchUserInfo = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('full_name, username')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('获取用户信息失败:', error);
+        return;
+      }
+
+      if (data) {
+        setUserName(data.full_name || data.username || '用户');
+      }
+    } catch (error) {
+      console.error('获取用户信息异常:', error);
     }
   };
 
@@ -175,10 +202,10 @@ const StudentInfoPage: React.FC = () => {
             scales: {
               y: {
                 beginAtZero: false,
-                min: 70,
-                max: 100,
+                suggestedMin: 50,
+                suggestedMax: 100,
                 ticks: {
-                  stepSize: 5
+                  stepSize: 10
                 },
                 grid: {
                   color: 'rgba(0, 0, 0, 0.05)'
@@ -262,7 +289,7 @@ const StudentInfoPage: React.FC = () => {
                 alt="用户头像" 
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="text-sm font-medium text-text-primary">{user?.username || '用户'}</span>
+              <span className="text-sm font-medium text-text-primary">{userName}</span>
               <i className="fas fa-chevron-down text-xs text-text-muted"></i>
             </div>
           </div>
@@ -521,8 +548,8 @@ const StudentInfoPage: React.FC = () => {
                     <div className="text-sm text-text-muted">及格率</div>
                     <div className="text-2xl font-bold text-purple-600">
                       {loading ? '...' : (
-                        stats?.scoreTrend.scores.length > 0 
-                          ? ((stats.scoreTrend.scores.filter(score => score >= 60).length / stats.scoreTrend.scores.length) * 100).toFixed(0) + '%'
+                        stats?.studentStats?.totalProjects > 0 && stats?.studentStats?.completionRate
+                          ? stats.studentStats.completionRate.toFixed(0) + '%'
                           : '0%'
                       )}
                     </div>

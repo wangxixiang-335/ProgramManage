@@ -280,6 +280,39 @@ export class AchievementService {
     }
   }
 
+  // 根据ID获取单个成果
+  static async getAchievementById(id: string): Promise<{ success: boolean; data?: Achievement; message?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('achievements')
+        .select(`
+          *,
+          achievement_types!achievements_type_id_fkey (name),
+          publisher:users!achievements_publisher_id_fkey (username, email),
+          instructor:users!achievements_instructor_id_fkey (username, email)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        const errorMessage = typeof error === 'object' && error !== null && 'message' in error 
+          ? (error as { message: string }).message 
+          : String(error);
+        throw new Error(errorMessage);
+      }
+
+      // 转换状态数字为字符串
+      if (data) {
+        data.status = this.convertStatusFromNumber(data.status as AchievementStatusCode);
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error fetching achievement by ID:', error);
+      return { success: false, message: error instanceof Error ? error.message : '获取成果详情失败' };
+    }
+  }
+
   // 上传文件到Supabase Storage
   static async uploadFile(file: File, bucket: string, path: string): Promise<{ success: boolean; url?: string; message?: string }> {
     try {
@@ -469,12 +502,21 @@ export class AchievementService {
   // 更新成果
   static async updateAchievement(id: string, updateData: UpdateAchievementRequest): Promise<{ success: boolean; data?: Achievement; message?: string }> {
     try {
+      // 如果状态是字符串，需要转换为数字
+      let finalUpdateData = { ...updateData };
+      if (updateData.status && typeof updateData.status === 'string') {
+        finalUpdateData = {
+          ...updateData,
+          status: STATUS_TO_NUMBER[updateData.status as AchievementStatus]
+        };
+      }
+
+      // 移除 updated_at 字段，因为数据库表中没有这个字段
+      const { updated_at, ...updateFields } = finalUpdateData;
+
       const { data, error } = await supabase
         .from('achievements')
-        .update({
-          ...updateData,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateFields)
         .eq('id', id)
         .select()
         .single();
@@ -484,6 +526,11 @@ export class AchievementService {
           ? (error as { message: string }).message 
           : String(error);
         throw new Error(errorMessage);
+      }
+
+      // 转换数据中的数字状态为字符串，以便前端使用
+      if (data && data.status) {
+        data.status = this.convertStatusFromNumber(data.status as AchievementStatusCode);
       }
 
       return { success: true, data };
@@ -561,28 +608,7 @@ export class AchievementService {
     }
   }
 
-  // 获取单个成果详情
-  static async getAchievementById(id: string): Promise<{ success: boolean; data?: Achievement; message?: string }> {
-    try {
-      const { data, error } = await supabase
-        .from('achievements')
-        .select('*')
-        .eq('id', id)
-        .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return { success: false, message: '成果不存在' };
-        }
-        throw new Error(error.message);
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error('Error fetching achievement:', error);
-      return { success: false, message: error instanceof Error ? error.message : '获取成果详情失败' };
-    }
-  }
 
   // ==================== 审批相关方法 ====================
 

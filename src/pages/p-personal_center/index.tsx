@@ -44,6 +44,8 @@ interface Notification {
   iconColor: string;
 }
 
+
+
 const PersonalCenter: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -69,10 +71,10 @@ const PersonalCenter: React.FC = () => {
     confirmEmail: ''
   });
   const [loading, setLoading] = useState(true);
-  const [userNotifications, setUserNotifications] = useState<Notification[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [userNotifications, setUserNotifications] = useState<Notification[]>([]);
 
   
 
@@ -334,15 +336,50 @@ const PersonalCenter: React.FC = () => {
       return;
     }
     
+    if (!userProfile) {
+      showErrorMessage('用户信息未加载');
+      return;
+    }
+    
     try {
-      // 使用 Supabase 的密码更新功能
-      const { error } = await supabase.auth.updateUser({
-        password: passwordForm.newPassword
-      });
+      // 验证旧密码是否正确（系统当前使用明文密码存储）
+      const { data: userData, error: verifyError } = await supabase
+        .from('users')
+        .select('password_hash')
+        .eq('id', userProfile.id)
+        .single();
 
-      if (error) {
-        console.error('密码修改失败:', error);
-        showErrorMessage('密码修改失败：' + error.message);
+      if (verifyError || !userData) {
+        console.error('验证用户失败:', verifyError);
+        showErrorMessage('用户验证失败');
+        return;
+      }
+
+      // 检查旧密码是否匹配（注意：系统当前直接比较明文密码）
+      if (userData.password_hash !== passwordForm.oldPassword) {
+        console.log('密码验证失败:', {
+          storedPassword: userData.password_hash,
+          inputPassword: passwordForm.oldPassword,
+          match: userData.password_hash === passwordForm.oldPassword
+        });
+        showErrorMessage('旧密码输入错误');
+        return;
+      }
+      
+      console.log('密码验证成功，准备更新密码');
+
+      // 更新数据库中的密码
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          password_hash: passwordForm.newPassword,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userProfile.id);
+
+      if (updateError) {
+        console.error('密码更新失败:', updateError);
+        showErrorMessage('密码更新失败：' + updateError.message);
         return;
       }
 
@@ -370,15 +407,42 @@ const PersonalCenter: React.FC = () => {
       return;
     }
     
+    // 检查新邮箱是否和当前邮箱相同
+    if (emailForm.newEmail === userInfo.email) {
+      showErrorMessage('新邮箱不能与当前邮箱相同');
+      return;
+    }
+    
     try {
-      // 使用 Supabase 的邮箱更新功能
-      const { error } = await supabase.auth.updateUser({
-        email: emailForm.newEmail
-      });
+      if (!userProfile) {
+        showErrorMessage('用户信息未加载');
+        return;
+      }
 
-      if (error) {
-        console.error('邮箱修改失败:', error);
-        showErrorMessage('邮箱修改失败：' + error.message);
+      // 检查新邮箱是否已被其他用户使用
+      const { data: existingEmail, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', emailForm.newEmail)
+        .single();
+
+      if (existingEmail && existingEmail.id !== userProfile.id) {
+        showErrorMessage('该邮箱已被其他用户使用');
+        return;
+      }
+
+      // 直接更新数据库中的邮箱字段
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          email: emailForm.newEmail,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userProfile.id);
+
+      if (updateError) {
+        console.error('邮箱更新失败:', updateError);
+        showErrorMessage('邮箱更新失败：' + updateError.message);
         return;
       }
 
@@ -388,9 +452,15 @@ const PersonalCenter: React.FC = () => {
         email: emailForm.newEmail
       });
 
+      // 同时更新用户资料状态
+      setUserProfile({
+        ...userProfile,
+        email: emailForm.newEmail
+      });
+
       setShowEmailModal(false);
       setEmailForm({ newEmail: '', confirmEmail: '' });
-      showSuccessMessage('邮箱修改成功，请检查新邮箱进行验证');
+      showSuccessMessage('邮箱修改成功');
     } catch (error) {
       console.error('邮箱修改异常:', error);
       showErrorMessage('邮箱修改失败，请重试');
@@ -684,103 +754,41 @@ const PersonalCenter: React.FC = () => {
           )}
         </section>
 
-        {/* 消息通知模块 */}
-        <section className="bg-bg-light rounded-2xl shadow-card p-6 mb-8">
-          <h3 className="text-xl font-bold text-text-primary mb-6 flex items-center">
-            <i className="fas fa-bell text-orange-500 mr-3"></i>
-            消息通知
-          </h3>
-          
-          <div className="space-y-4">
-            {userNotifications.length > 0 ? (
-              userNotifications.map((notification) => (
-                <div key={notification.id} className={`${styles.notificationItem} p-4 border border-border-light rounded-lg`}>
-                  <div className="flex items-start space-x-3">
-                    <div className={`w-2 h-2 ${notification.iconColor} rounded-full mt-2 flex-shrink-0`}></div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-text-primary">{notification.type}</span>
-                        <span className="text-xs text-text-muted">{notification.time}</span>
-                      </div>
-                      <p className="text-sm text-text-secondary">{notification.content}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <i className="fas fa-bell-slash text-4xl text-text-muted mb-4"></i>
-                <p className="text-text-secondary">暂无消息通知</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 个人设置模块 */}
+        {/* 安全设置模块 */}
         <section className="bg-bg-light rounded-2xl shadow-card p-6">
           <h3 className="text-xl font-bold text-text-primary mb-6 flex items-center">
             <i className="fas fa-cog text-orange-500 mr-3"></i>
-            个人设置
+            安全设置
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 更新头像 */}
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-text-primary">头像设置</h4>
-              <div className="flex items-center space-x-6">
-                <div className="relative">
-                  <img 
-                    src={userInfo.avatarUrl || "https://s.coze.cn/image/3i02097jaU8/"} 
-                    alt="当前头像"
-                    className="w-20 h-20 rounded-full object-cover border-4 border-border-light"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                    <i className="fas fa-camera text-white text-xs"></i>
+          <div className="grid grid-cols-1 gap-6">
+            {/* 修改密码和修改邮箱 - 一行两列布局 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button 
+                onClick={() => setShowPasswordModal(true)}
+                className="px-4 py-3 border border-border-light rounded-lg hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <i className="fas fa-key text-orange-500"></i>
+                    <span className="font-medium text-text-primary">修改密码</span>
                   </div>
+                  <i className="fas fa-chevron-right text-text-muted"></i>
                 </div>
-                <div className="flex flex-col space-y-2">
-                  <button 
-                    onClick={handleUpdateAvatar}
-                    className="px-4 py-2 border border-border-light rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <i className="fas fa-upload mr-2"></i>
-                    更新头像
-                  </button>
-                  <p className="text-sm text-text-muted">支持JPG、PNG格式，文件大小不超过2MB</p>
+              </button>
+              
+              <button 
+                onClick={handleChangeEmail}
+                className="px-4 py-3 border border-border-light rounded-lg hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <i className="fas fa-envelope text-orange-500"></i>
+                    <span className="font-medium text-text-primary">修改邮箱</span>
+                  </div>
+                  <i className="fas fa-chevron-right text-text-muted"></i>
                 </div>
-              </div>
-            </div>
-            
-            {/* 修改密码 */}
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-text-primary">安全设置</h4>
-              <div className="space-y-3">
-                <button 
-                  onClick={() => setShowPasswordModal(true)}
-                  className="w-full px-4 py-3 border border-border-light rounded-lg hover:bg-gray-50 transition-colors text-left"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <i className="fas fa-key text-orange-500"></i>
-                      <span className="font-medium text-text-primary">修改密码</span>
-                    </div>
-                    <i className="fas fa-chevron-right text-text-muted"></i>
-                  </div>
-                </button>
-                
-                <button 
-                  onClick={handleChangeEmail}
-                  className="w-full px-4 py-3 border border-border-light rounded-lg hover:bg-gray-50 transition-colors text-left"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <i className="fas fa-envelope text-orange-500"></i>
-                      <span className="font-medium text-text-primary">修改邮箱</span>
-                    </div>
-                    <i className="fas fa-chevron-right text-text-muted"></i>
-                  </div>
-                </button>
-              </div>
+              </button>
             </div>
           </div>
         </section>
@@ -928,11 +936,6 @@ const PersonalCenter: React.FC = () => {
                     placeholder="请再次输入新邮箱地址" 
                     required 
                   />
-                </div>
-                
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                  <i className="fas fa-info-circle mr-2"></i>
-                  修改邮箱后，系统会向新邮箱发送验证邮件，请及时查收并完成验证。
                 </div>
                 
                 <div className="flex space-x-3 pt-4">
