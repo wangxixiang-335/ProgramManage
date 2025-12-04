@@ -152,44 +152,77 @@ export class StatisticsService {
         throw new Error('用户未登录');
       }
 
-      // 模拟数据 - 在实际项目中应该从数据库获取
-      const mockData: StatisticsData = {
+      // 从数据库获取真实的成果类型
+      const { data: achievementTypes, error: typesError } = await supabase
+        .from('achievement_types')
+        .select('*')
+        .order('created_at');
+
+      if (typesError) {
+        console.error('获取成果类型失败:', typesError);
+        throw typesError;
+      }
+
+      const typeLabels = achievementTypes?.map(type => type.name) || [];
+      const typeData = new Array(typeLabels.length).fill(0);
+      
+      // 获取教师自己的发布统计（按类型）
+      const { data: teacherAchievements, error: teacherError } = await supabase
+        .from('achievements')
+        .select('type_id')
+        .eq('publisher_id', currentUser.id)
+        .eq('status', 2); // 只统计已通过的成果
+
+      if (teacherError) {
+        console.error('获取教师发布统计失败:', teacherError);
+        throw teacherError;
+      }
+
+      // 统计各类型数量
+      teacherAchievements?.forEach(achievement => {
+        const typeIndex = achievementTypes?.findIndex(type => type.id === achievement.type_id);
+        if (typeIndex !== -1 && typeIndex !== undefined) {
+          typeData[typeIndex]++;
+        }
+      });
+
+      // 获取教师指导学生的成绩统计
+      const studentStats = await this.getTeacherStudentStats(currentUser.id);
+
+      return {
         publicationByType: {
-          labels: ['项目报告', '论文', '软件作品', '实验报告', '其他'],
-          data: [35, 25, 20, 15, 5]
+          labels: typeLabels,
+          data: typeData
         },
         scoreTrend: {
           labels: [],
           scores: []
         },
-        studentPublications: {
-          excellent: [8, 5, 3, 1, 1],
-          good: [10, 7, 3, 2, 0],
-          average: [2, 1, 0, 0, 0],
-          pass: [1, 1, 0, 0, 0],
-          labels: ['项目报告', '论文', '软件作品', '实验报告', '其他']
-        }
+        studentPublications: studentStats
       };
-
-      return mockData;
     } catch (error) {
       console.error('获取教师统计数据失败:', error);
+      
+      // 如果数据库查询失败，使用预定义的ACHIEVEMENT_TYPES作为fallback
+      const { ACHIEVEMENT_TYPES } = await import('../types/achievement');
+      const fallbackLabels = ACHIEVEMENT_TYPES.map(type => type.name);
+      
       // 返回默认数据
       return {
         publicationByType: {
-          labels: ['项目报告', '论文', '软件作品', '实验报告', '其他'],
-          data: [0, 0, 0, 0, 0]
+          labels: fallbackLabels,
+          data: new Array(fallbackLabels.length).fill(0)
         },
         scoreTrend: {
           labels: [],
           scores: []
         },
         studentPublications: {
-          excellent: [0, 0, 0, 0, 0],
-          good: [0, 0, 0, 0, 0],
-          average: [0, 0, 0, 0, 0],
-          pass: [0, 0, 0, 0, 0],
-          labels: ['项目报告', '论文', '软件作品', '实验报告', '其他']
+          excellent: new Array(fallbackLabels.length).fill(0),
+          good: new Array(fallbackLabels.length).fill(0),
+          average: new Array(fallbackLabels.length).fill(0),
+          pass: new Array(fallbackLabels.length).fill(0),
+          labels: fallbackLabels
         }
       };
     }
@@ -249,39 +282,43 @@ export class StatisticsService {
     projectCount: number;      // 负责项目数量
   }> {
     try {
-      // 获取待审批成果数量（使用与成果审批页面相同的逻辑）
+      // 获取待审批成果数量 - 只统计该教师指导学生的待审批成果
       const { data: pendingAchievements, error: pendingError } = await supabase
         .from('achievements')
         .select('id')
-        .eq('status', 'pending');
+        .eq('instructor_id', teacherId)
+        .eq('status', 1); // 1 = pending (STATUS_TO_NUMBER['pending'])
 
       if (pendingError) throw pendingError;
       const pendingCount = pendingAchievements?.length || 0;
 
-      // 获取已发布成果数量
+      // 获取已发布成果数量 - 统计该教师发布的成果
       const { data: publishedAchievements, error: publishedError } = await supabase
         .from('achievements')
         .select('id')
-        .eq('status', 'approved');
+        .eq('publisher_id', teacherId)
+        .eq('status', 2); // 2 = 已通过/approved
 
       if (publishedError) throw publishedError;
       const publishedCount = publishedAchievements?.length || 0;
 
-      // 获取指导学生数量
-      const { data: students, error: studentsError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 1); // 学生角色
+      // 获取指导学生数量 - 通过achievements表统计该教师指导的不同学生数量
+      const { data: studentAchievements, error: studentsError } = await supabase
+        .from('achievements')
+        .select('publisher_id')
+        .eq('instructor_id', teacherId);
 
       if (studentsError) throw studentsError;
-      const studentCount = students?.length || 0;
+      
+      // 统计不重复的学生ID
+      const uniqueStudentIds = new Set(studentAchievements?.map(item => item.publisher_id) || []);
+      const studentCount = uniqueStudentIds.size;
 
-      // 获取负责项目数量
+      // 获取负责项目数量 - 统计该教师作为指导老师的所有项目（成果）
       const { data: projects, error: projectsError } = await supabase
-        .from('project_members')
-        .select('project_id')
-        .eq('user_id', teacherId)
-        .eq('role', 'teacher'); // 教师角色
+        .from('achievements')
+        .select('id')
+        .eq('instructor_id', teacherId);
 
       if (projectsError) throw projectsError;
       const projectCount = projects?.length || 0;

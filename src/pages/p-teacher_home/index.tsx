@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StatisticsService } from '../../lib/statisticsService';
-import { getCurrentUser } from '../../lib/userUtils';
+import { AchievementService } from '../../lib/achievementService';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 
 // 声明Chart.js的全局类型
@@ -15,9 +16,11 @@ declare global {
 
 const TeacherHomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('dashboard');
-  const [activeViewType, setActiveViewType] = useState('monthly');
+  const [currentUser, setCurrentUser] = useState(user);
+
   const [currentDate, setCurrentDate] = useState('');
   const [isRefreshingTypes, setIsRefreshingTypes] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({
@@ -28,7 +31,7 @@ const TeacherHomePage: React.FC = () => {
   });
   
   const publicationChartRef = useRef<any>(null);
-  const resultTypesChartRef = useRef<any>(null);
+  const [stats, setStats] = useState<any>(null);
 
   // 设置页面标题
   useEffect(() => {
@@ -48,11 +51,29 @@ const TeacherHomePage: React.FC = () => {
     setCurrentDate(formattedDate);
   }, []);
 
+  // 加载当前用户信息
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const currentUserId = String(user?.id || '');
+        if (currentUserId) {
+          const userResult = await AchievementService.getCurrentUser(currentUserId);
+          if (userResult.success && userResult.data) {
+            setCurrentUser(userResult.data);
+          }
+        }
+      } catch (error) {
+        console.error('获取当前用户信息失败:', error);
+      }
+    };
+
+    loadCurrentUser();
+  }, [user]);
+
   // 获取仪表板统计数据
   useEffect(() => {
     const loadDashboardStats = async () => {
       try {
-        const currentUser = getCurrentUser();
         if (currentUser) {
           const stats = await StatisticsService.getTeacherDashboardStats(currentUser.id);
           setDashboardStats(stats);
@@ -62,8 +83,10 @@ const TeacherHomePage: React.FC = () => {
       }
     };
 
-    loadDashboardStats();
-  }, []);
+    if (currentUser) {
+      loadDashboardStats();
+    }
+  }, [currentUser]);
 
   // 初始化图表
   useEffect(() => {
@@ -91,44 +114,35 @@ const TeacherHomePage: React.FC = () => {
         publicationChartRef.current.destroy();
         publicationChartRef.current = null;
       }
-      if (resultTypesChartRef.current) {
-        resultTypesChartRef.current.destroy();
-        resultTypesChartRef.current = null;
-      }
     };
   }, []);
 
   const initializeCharts = async () => {
     try {
       // 获取教师统计数据
-      const stats = await StatisticsService.getTeacherStatistics();
+      const teacherStats = await StatisticsService.getTeacherStatistics();
+      setStats(teacherStats);
       
       // 个人发布量统计图表 - 按发布类型统计（柱状图）
       const publicationCtx = document.getElementById('publication-chart') as HTMLCanvasElement;
       if (publicationCtx && !publicationChartRef.current) {
         const ctx = publicationCtx.getContext('2d');
         if (ctx) {
+          // 生成动态颜色数组
+          const backgroundColors = teacherStats.publicationByType.labels.map((_, index) => {
+            const colors = ['#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#757575', '#E53935', '#FDD835', '#5E35B1'];
+            return colors[index % colors.length];
+          });
+
           publicationChartRef.current = new window.Chart(ctx, {
             type: 'bar',
             data: {
-              labels: stats.publicationByType.labels,
+              labels: teacherStats.publicationByType.labels,
               datasets: [{
                 label: '发布数量',
-                data: stats.publicationByType.data,
-                backgroundColor: [
-                  '#1E88E5',
-                  '#43A047',
-                  '#FB8C00',
-                  '#8E24AA',
-                  '#757575'
-                ],
-                borderColor: [
-                  '#1E88E5',
-                  '#43A047',
-                  '#FB8C00',
-                  '#8E24AA',
-                  '#757575'
-                ],
+                data: teacherStats.publicationByType.data,
+                backgroundColor: backgroundColors,
+                borderColor: backgroundColors,
                 borderWidth: 2,
                 borderRadius: 8
               }]
@@ -172,69 +186,7 @@ const TeacherHomePage: React.FC = () => {
         }
       }
 
-      // 学生发布量统计图表 - 按分数统计
-      const resultTypesCtx = document.getElementById('result-types-chart') as HTMLCanvasElement;
-      if (resultTypesCtx && !resultTypesChartRef.current) {
-        const ctx = resultTypesCtx.getContext('2d');
-        if (ctx) {
-          resultTypesChartRef.current = new window.Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: stats.studentPublications.labels,
-              datasets: [{
-                label: '优秀 (90-100分)',
-                data: stats.studentPublications.excellent,
-                backgroundColor: '#4CAF50',
-                borderRadius: 4
-              }, {
-                label: '良好 (80-89分)',
-                data: stats.studentPublications.good,
-                backgroundColor: '#2196F3',
-                borderRadius: 4
-              }, {
-                label: '中等 (70-79分)',
-                data: stats.studentPublications.average,
-                backgroundColor: '#FF9800',
-                borderRadius: 4
-              }, {
-                label: '及格 (60-69分)',
-                data: stats.studentPublications.pass,
-                backgroundColor: '#9E9E9E',
-                borderRadius: 4
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'top',
-                },
-                tooltip: {
-                  mode: 'index',
-                  intersect: false
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  stacked: true,
-                  grid: {
-                    display: true,
-                    color: 'rgba(0, 0, 0, 0.05)'
-                  }
-                },
-                x: {
-                  stacked: true,
-                  grid: {
-                    display: false
-                  }
-                }
-              }
-            }
-          });
-        }
-      }
+
     } catch (error) {
       console.error('初始化教师图表失败:', error);
     }
@@ -244,10 +196,7 @@ const TeacherHomePage: React.FC = () => {
     setActiveNavItem(itemId);
   };
 
-  const handleViewTypeChange = (viewType: string) => {
-    setActiveViewType(viewType);
-    // 这里可以根据选择的视图更新图表数据
-  };
+
 
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -418,7 +367,7 @@ const TeacherHomePage: React.FC = () => {
                     className="w-10 h-10 rounded-full object-cover border-2 border-secondary"
                   />
                   <div className="hidden md:block">
-                    <p className="text-sm font-medium text-text-primary">张教授</p>
+                    <p className="text-sm font-medium text-text-primary">{currentUser?.full_name || user?.full_name || '教师用户'}</p>
                     <p className="text-xs text-text-muted">计算机科学与技术系</p>
                   </div>
                 </div>
@@ -430,7 +379,7 @@ const TeacherHomePage: React.FC = () => {
           <div className="p-6">
             {/* 欢迎信息 */}
             <div className={`mb-8 ${styles.fadeIn}`}>
-              <h1 className="text-2xl font-bold text-text-primary">您好，张教授</h1>
+              <h1 className="text-2xl font-bold text-text-primary">您好，{currentUser?.full_name || user?.full_name || '教师用户'}</h1>
               <p className="text-text-secondary mt-1">今天是 <span>{currentDate}</span></p>
             </div>
             
@@ -501,40 +450,8 @@ const TeacherHomePage: React.FC = () => {
             <div className="space-y-6 mb-8">
               {/* 个人发布量统计图 - 上方区域 */}
               <div className={`bg-white rounded-xl shadow-card p-6 ${styles.fadeIn}`} style={{animationDelay: '0.4s'}}>
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6">
                   <h3 className="text-lg font-semibold text-text-primary">个人发布量统计图（按发布类型统计）</h3>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleViewTypeChange('monthly')}
-                      className={`px-3 py-1 text-xs rounded-full ${
-                        activeViewType === 'monthly' 
-                          ? 'bg-secondary text-white' 
-                          : 'bg-bg-gray text-text-secondary'
-                      }`}
-                    >
-                      月度
-                    </button>
-                    <button 
-                      onClick={() => handleViewTypeChange('quarterly')}
-                      className={`px-3 py-1 text-xs rounded-full ${
-                        activeViewType === 'quarterly' 
-                          ? 'bg-secondary text-white' 
-                          : 'bg-bg-gray text-text-secondary'
-                      }`}
-                    >
-                      季度
-                    </button>
-                    <button 
-                      onClick={() => handleViewTypeChange('yearly')}
-                      className={`px-3 py-1 text-xs rounded-full ${
-                        activeViewType === 'yearly' 
-                          ? 'bg-secondary text-white' 
-                          : 'bg-bg-gray text-text-secondary'
-                      }`}
-                    >
-                      年度
-                    </button>
-                  </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   <div className="lg:col-span-2">
@@ -542,201 +459,39 @@ const TeacherHomePage: React.FC = () => {
                       <canvas id="publication-chart"></canvas>
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <h5 className="font-semibold text-text-primary">发布类型详情</h5>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="text-sm font-medium">项目报告</span>
-                        <span className="text-sm font-bold text-blue-600">35个</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm font-medium">论文</span>
-                        <span className="text-sm font-bold text-green-600">25个</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                        <span className="text-sm font-medium">软件作品</span>
-                        <span className="text-sm font-bold text-orange-600">20个</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                        <span className="text-sm font-medium">实验报告</span>
-                        <span className="text-sm font-bold text-purple-600">15个</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm font-medium">其他</span>
-                        <span className="text-sm font-bold text-gray-600">5个</span>
-                      </div>
+                  <div className="h-80 flex flex-col">
+                    <h5 className="font-semibold text-text-primary mb-4">发布类型详情</h5>
+                    <div className="flex-1 space-y-2 overflow-y-auto">
+                      {stats?.publicationByType?.labels?.map((label, index) => {
+                        const count = stats.publicationByType.data[index] || 0;
+                        const colors = [
+                          'bg-blue-50 text-blue-600',
+                          'bg-green-50 text-green-600', 
+                          'bg-orange-50 text-orange-600',
+                          'bg-purple-50 text-purple-600',
+                          'bg-gray-50 text-gray-600',
+                          'bg-red-50 text-red-600',
+                          'bg-yellow-50 text-yellow-600',
+                          'bg-indigo-50 text-indigo-600'
+                        ];
+                        const colorClass = colors[index % colors.length];
+                        
+                        return (
+                          <div key={label} className={`flex justify-between items-center p-3 rounded-lg ${colorClass}`}>
+                            <span className="text-sm font-medium">{label}</span>
+                            <span className="text-sm font-bold">{count}个</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
               
-              {/* 学生发布量统计图 - 下方区域 */}
-              <div className={`bg-white rounded-xl shadow-card p-6 ${styles.fadeIn}`} style={{animationDelay: '0.5s'}}>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-text-primary">学生发布量统计图（作为指导老师的成果发布统计）</h3>
-                  <div className="flex space-x-2">
-                    <button className="px-3 py-1 text-xs bg-secondary text-white rounded-full">按分数</button>
-                    <button className="px-3 py-1 text-xs bg-bg-gray text-text-secondary rounded-full">按类型</button>
-                    <button className="px-3 py-1 text-xs bg-bg-gray text-text-secondary rounded-full">按时间</button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2">
-                    <div className="h-80">
-                      <canvas id="result-types-chart"></canvas>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <h5 className="font-semibold text-text-primary">分数段分布</h5>
-                    <div className="space-y-2">
-                      <div className="p-3 bg-green-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">优秀 (90-100分)</span>
-                          <span className="text-sm font-bold text-green-600">18个</span>
-                        </div>
-                        <div className="w-full bg-green-200 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{width: '40%'}}></div>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">良好 (80-89分)</span>
-                          <span className="text-sm font-bold text-blue-600">22个</span>
-                        </div>
-                        <div className="w-full bg-blue-200 rounded-full h-2">
-                          <div className="bg-blue-500 h-2 rounded-full" style={{width: '49%'}}></div>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-orange-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">中等 (70-79分)</span>
-                          <span className="text-sm font-bold text-orange-600">3个</span>
-                        </div>
-                        <div className="w-full bg-orange-200 rounded-full h-2">
-                          <div className="bg-orange-500 h-2 rounded-full" style={{width: '7%'}}></div>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">及格 (60-69分)</span>
-                          <span className="text-sm font-bold text-gray-600">2个</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-gray-500 h-2 rounded-full" style={{width: '4%'}}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
             </div>
             
-            {/* 最近活动 */}
-            <div className={`bg-white rounded-xl shadow-card p-6 ${styles.fadeIn}`} style={{animationDelay: '0.6s'}}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-text-primary">最近活动</h3>
-                <button className="text-secondary hover:text-accent text-sm">查看全部</button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border-light">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">活动类型</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">相关成果</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">学生</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">时间</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">状态</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-border-light hover:bg-bg-gray">
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-secondary mr-3">
-                            <i className="fas fa-file-alt"></i>
-                          </div>
-                          提交成果
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-primary">基于深度学习的图像识别系统</td>
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <img src="https://s.coze.cn/image/6vJnRXeJz4k/" alt="学生头像" className="w-6 h-6 rounded-full mr-2" />
-                          李明
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-muted">今天 09:30</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">待审批</span>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-border-light hover:bg-bg-gray">
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-500 mr-3">
-                            <i className="fas fa-check"></i>
-                          </div>
-                          审批通过
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-primary">移动应用开发实践报告</td>
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <img src="https://s.coze.cn/image/nqJSKgC19w4/" alt="学生头像" className="w-6 h-6 rounded-full mr-2" />
-                          王华
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-muted">昨天 14:15</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">已通过</span>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-border-light hover:bg-bg-gray">
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-500 mr-3">
-                            <i className="fas fa-times"></i>
-                          </div>
-                          审批驳回
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-primary">数据库设计方案</td>
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <img src="https://s.coze.cn/image/3ckcsA0j0jA/" alt="学生头像" className="w-6 h-6 rounded-full mr-2" />
-                          张伟
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-muted">前天 16:45</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">已驳回</span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-bg-gray">
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-500 mr-3">
-                            <i className="fas fa-edit"></i>
-                          </div>
-                          更新成果
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-primary">Web前端开发技术总结</td>
-                      <td className="py-3 px-4 text-sm text-text-primary">
-                        <div className="flex items-center">
-                          <img src="https://s.coze.cn/image/Smoup6bLdIs/" alt="学生头像" className="w-6 h-6 rounded-full mr-2" />
-                          刘洋
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-text-muted">3天前</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">已更新</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            
           </div>
         </main>
       </div>

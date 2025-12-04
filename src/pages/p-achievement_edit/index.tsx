@@ -623,7 +623,7 @@ const AchievementEditPage: React.FC = () => {
                     className="w-10 h-10 rounded-full object-cover border-2 border-secondary"
                   />
                   <div className="hidden md:block">
-                    <p className="text-sm font-medium text-text-primary">张教授</p>
+                    <p className="text-sm font-medium text-text-primary">{user?.full_name || '教师用户'}</p>
                     <p className="text-xs text-text-muted">计算机科学与技术系</p>
                   </div>
                 </div>
