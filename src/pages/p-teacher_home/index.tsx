@@ -17,7 +17,7 @@ const TeacherHomePage: React.FC = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('dashboard');
-  const [activeViewType, setActiveViewType] = useState('monthly');
+
   const [currentDate, setCurrentDate] = useState('');
   const [isRefreshingTypes, setIsRefreshingTypes] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({
@@ -28,7 +28,6 @@ const TeacherHomePage: React.FC = () => {
   });
   
   const publicationChartRef = useRef<any>(null);
-  const resultTypesChartRef = useRef<any>(null);
   const [stats, setStats] = useState<any>(null);
 
   // 设置页面标题
@@ -91,10 +90,6 @@ const TeacherHomePage: React.FC = () => {
       if (publicationChartRef.current) {
         publicationChartRef.current.destroy();
         publicationChartRef.current = null;
-      }
-      if (resultTypesChartRef.current) {
-        resultTypesChartRef.current.destroy();
-        resultTypesChartRef.current = null;
       }
     };
   }, []);
@@ -168,69 +163,7 @@ const TeacherHomePage: React.FC = () => {
         }
       }
 
-      // 学生发布量统计图表 - 按分数统计
-      const resultTypesCtx = document.getElementById('result-types-chart') as HTMLCanvasElement;
-      if (resultTypesCtx && !resultTypesChartRef.current) {
-        const ctx = resultTypesCtx.getContext('2d');
-        if (ctx) {
-          resultTypesChartRef.current = new window.Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: teacherStats.studentPublications.labels,
-              datasets: [{
-                label: '优秀 (90-100分)',
-                data: teacherStats.studentPublications.excellent,
-                backgroundColor: '#4CAF50',
-                borderRadius: 4
-              }, {
-                label: '良好 (80-89分)',
-                data: teacherStats.studentPublications.good,
-                backgroundColor: '#2196F3',
-                borderRadius: 4
-              }, {
-                label: '中等 (70-79分)',
-                data: teacherStats.studentPublications.average,
-                backgroundColor: '#FF9800',
-                borderRadius: 4
-              }, {
-                label: '及格 (60-69分)',
-                data: teacherStats.studentPublications.pass,
-                backgroundColor: '#9E9E9E',
-                borderRadius: 4
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'top',
-                },
-                tooltip: {
-                  mode: 'index',
-                  intersect: false
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  stacked: true,
-                  grid: {
-                    display: true,
-                    color: 'rgba(0, 0, 0, 0.05)'
-                  }
-                },
-                x: {
-                  stacked: true,
-                  grid: {
-                    display: false
-                  }
-                }
-              }
-            }
-          });
-        }
-      }
+
     } catch (error) {
       console.error('初始化教师图表失败:', error);
     }
@@ -240,10 +173,7 @@ const TeacherHomePage: React.FC = () => {
     setActiveNavItem(itemId);
   };
 
-  const handleViewTypeChange = (viewType: string) => {
-    setActiveViewType(viewType);
-    // 这里可以根据选择的视图更新图表数据
-  };
+
 
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -497,40 +427,8 @@ const TeacherHomePage: React.FC = () => {
             <div className="space-y-6 mb-8">
               {/* 个人发布量统计图 - 上方区域 */}
               <div className={`bg-white rounded-xl shadow-card p-6 ${styles.fadeIn}`} style={{animationDelay: '0.4s'}}>
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6">
                   <h3 className="text-lg font-semibold text-text-primary">个人发布量统计图（按发布类型统计）</h3>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleViewTypeChange('monthly')}
-                      className={`px-3 py-1 text-xs rounded-full ${
-                        activeViewType === 'monthly' 
-                          ? 'bg-secondary text-white' 
-                          : 'bg-bg-gray text-text-secondary'
-                      }`}
-                    >
-                      月度
-                    </button>
-                    <button 
-                      onClick={() => handleViewTypeChange('quarterly')}
-                      className={`px-3 py-1 text-xs rounded-full ${
-                        activeViewType === 'quarterly' 
-                          ? 'bg-secondary text-white' 
-                          : 'bg-bg-gray text-text-secondary'
-                      }`}
-                    >
-                      季度
-                    </button>
-                    <button 
-                      onClick={() => handleViewTypeChange('yearly')}
-                      className={`px-3 py-1 text-xs rounded-full ${
-                        activeViewType === 'yearly' 
-                          ? 'bg-secondary text-white' 
-                          : 'bg-bg-gray text-text-secondary'
-                      }`}
-                    >
-                      年度
-                    </button>
-                  </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   <div className="lg:col-span-2">
@@ -538,9 +436,9 @@ const TeacherHomePage: React.FC = () => {
                       <canvas id="publication-chart"></canvas>
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <h5 className="font-semibold text-text-primary">发布类型详情</h5>
-                    <div className="space-y-2">
+                  <div className="h-80 flex flex-col">
+                    <h5 className="font-semibold text-text-primary mb-4">发布类型详情</h5>
+                    <div className="flex-1 space-y-2 overflow-y-auto">
                       {stats?.publicationByType?.labels?.map((label, index) => {
                         const count = stats.publicationByType.data[index] || 0;
                         const colors = [
@@ -567,65 +465,7 @@ const TeacherHomePage: React.FC = () => {
                 </div>
               </div>
               
-              {/* 学生发布量统计图 - 下方区域 */}
-              <div className={`bg-white rounded-xl shadow-card p-6 ${styles.fadeIn}`} style={{animationDelay: '0.5s'}}>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-text-primary">学生发布量统计图（作为指导老师的成果发布统计）</h3>
-                  <div className="flex space-x-2">
-                    <button className="px-3 py-1 text-xs bg-secondary text-white rounded-full">按分数</button>
-                    <button className="px-3 py-1 text-xs bg-bg-gray text-text-secondary rounded-full">按类型</button>
-                    <button className="px-3 py-1 text-xs bg-bg-gray text-text-secondary rounded-full">按时间</button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2">
-                    <div className="h-80">
-                      <canvas id="result-types-chart"></canvas>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <h5 className="font-semibold text-text-primary">分数段分布</h5>
-                    <div className="space-y-2">
-                      <div className="p-3 bg-green-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">优秀 (90-100分)</span>
-                          <span className="text-sm font-bold text-green-600">18个</span>
-                        </div>
-                        <div className="w-full bg-green-200 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{width: '40%'}}></div>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">良好 (80-89分)</span>
-                          <span className="text-sm font-bold text-blue-600">22个</span>
-                        </div>
-                        <div className="w-full bg-blue-200 rounded-full h-2">
-                          <div className="bg-blue-500 h-2 rounded-full" style={{width: '49%'}}></div>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-orange-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">中等 (70-79分)</span>
-                          <span className="text-sm font-bold text-orange-600">3个</span>
-                        </div>
-                        <div className="w-full bg-orange-200 rounded-full h-2">
-                          <div className="bg-orange-500 h-2 rounded-full" style={{width: '7%'}}></div>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">及格 (60-69分)</span>
-                          <span className="text-sm font-bold text-gray-600">2个</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-gray-500 h-2 rounded-full" style={{width: '4%'}}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
             </div>
             
             
