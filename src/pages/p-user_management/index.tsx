@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './styles.module.css';
 import { 
   buildOrganizationTree, 
@@ -26,6 +27,7 @@ import {
 
 const UserManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -647,7 +649,7 @@ const UserManagement: React.FC = () => {
                 <i className="fas fa-user"></i>
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-medium text-text-primary">管理员</p>
+                <p className="text-sm font-medium text-text-primary">{user?.full_name || '管理员'}</p>
                 <p className="text-xs text-text-muted">系统管理员</p>
               </div>
               <i className="fas fa-chevron-down text-xs text-text-muted"></i>
