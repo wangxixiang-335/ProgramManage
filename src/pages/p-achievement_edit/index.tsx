@@ -567,12 +567,6 @@ const AchievementEditPage: React.FC = () => {
                   <span className="ml-3">成果查看</span>
                 </Link>
               </li>
-            </ul>
-          </nav>
-          
-          {/* 底部导航 */}
-          <div className="mt-auto p-4 border-t border-border-light">
-            <ul>
               <li>
                 <button className={`flex items-center px-6 py-3 text-text-secondary ${styles.sidebarItemHover} w-full text-left`}>
                   <i className="fas fa-user-cog w-6 text-center"></i>
@@ -589,7 +583,7 @@ const AchievementEditPage: React.FC = () => {
                 </Link>
               </li>
             </ul>
-          </div>
+          </nav>
         </aside>
         
         {/* 主内容区域 */}

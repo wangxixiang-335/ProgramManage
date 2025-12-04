@@ -202,12 +202,6 @@ const AchievementManagement: React.FC = () => {
                   <span className="ml-3">成果查看</span>
                 </Link>
               </li>
-            </ul>
-          </nav>
-          
-          {/* 底部导航 */}
-          <div className="mt-auto p-4 border-t border-border-light">
-            <ul>
               <li>
                 <Link 
                   to="/login" 
@@ -218,7 +212,7 @@ const AchievementManagement: React.FC = () => {
                 </Link>
               </li>
             </ul>
-          </div>
+          </nav>
         </aside>
         
         {/* 主内容区域 */}
