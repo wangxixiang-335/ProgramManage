@@ -944,8 +944,8 @@ export class AchievementService {
         .select(`
           *,
           achievement_types!achievements_type_id_fkey (name),
-          users!achievements_publisher_id_fkey (username, email),
-          instructor:users!achievements_instructor_id_fkey (username, email)
+          users!achievements_publisher_id_fkey (username, email, full_name, role),
+          instructor:users!achievements_instructor_id_fkey (username, email, full_name, role)
         `)
         .order('created_at', { ascending: false });
 
