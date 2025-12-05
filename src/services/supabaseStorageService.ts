@@ -448,3 +448,302 @@ export const createNewsImagesBucket = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// =====================================
+// achievement-images 存储桶相关功能（项目封面图片）
+// =====================================
+
+/**
+ * 检查achievement-images存储桶是否存在
+ */
+export const checkAchievementImagesBucket = async (): Promise<boolean> => {
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    return buckets?.some(bucket => bucket.name === 'achievement-images') || false;
+  } catch (error) {
+    console.error('检查achievement-images存储桶时发生错误:', error);
+    return false;
+  }
+};
+
+/**
+ * 创建achievement-images存储桶
+ */
+export const createAchievementImagesBucket = async (): Promise<boolean> => {
+  try {
+    // 检查桶是否已存在
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const achievementImagesBucket = buckets?.find(bucket => bucket.name === 'achievement-images');
+    
+    if (achievementImagesBucket) {
+      console.log('achievement-images存储桶已存在');
+      return true;
+    }
+
+    // 创建新桶
+    const { error } = await supabase.storage.createBucket('achievement-images', {
+      public: true, // 设置为公开访问
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], // 允许常见图片格式
+      fileSizeLimit: 10 * 1024 * 1024, // 限制文件大小为10MB
+    });
+
+    if (error) {
+      console.error('创建achievement-images存储桶失败:', error);
+      return false;
+    }
+
+    console.log('achievement-images存储桶创建成功');
+    return true;
+  } catch (error) {
+    console.error('创建achievement-images存储桶时发生错误:', error);
+    return false;
+  }
+};
+
+/**
+ * 上传图片到achievement-images桶
+ * @param file 要上传的文件
+ * @param fileName 文件名（可选，默认使用时间戳+原文件名）
+ * @param filePath 文件路径（可选，例如：achievements/userId/fileName）
+ * @returns 上传结果对象
+ */
+export const uploadToAchievementImagesBucket = async (file: File, fileName?: string, filePath?: string): Promise<UploadResult> => {
+  try {
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      return { success: false, error: '只能上传图片文件' };
+    }
+
+    // 验证文件大小（10MB）
+    if (file.size > 10 * 1024 * 1024) {
+      return { success: false, error: '图片大小不能超过10MB' };
+    }
+
+    // 确保桶存在
+    const bucketExists = await createAchievementImagesBucket();
+    if (!bucketExists) {
+      return { success: false, error: '无法创建或访问achievement-images存储桶' };
+    }
+
+    // 生成唯一文件名和路径
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 8);
+    const finalFileName = fileName || `${timestamp}_${randomString}_${file.name}`;
+    const finalFilePath = filePath || `achievements/${finalFileName}`;
+    
+    console.log('开始上传到achievement-images桶:', finalFilePath);
+    
+    // 上传文件
+    const startTime = Date.now();
+    const { error } = await supabase.storage
+      .from('achievement-images')
+      .upload(finalFilePath, file, {
+        cacheControl: '3600',
+        upsert: true, // 允许覆盖，支持更新封面图
+      });
+
+    const uploadTime = Date.now() - startTime;
+    console.log(`上传耗时: ${uploadTime}ms`);
+
+    if (error) {
+      console.error('上传到achievement-images桶失败:', error);
+      return { success: false, error: `上传失败: ${error.message}` };
+    }
+
+    // 获取公共URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('achievement-images')
+      .getPublicUrl(finalFilePath);
+
+    console.log('图片上传到achievement-images桶成功:', publicUrl);
+    
+    return { 
+      success: true, 
+      url: publicUrl,
+      error: undefined
+    };
+  } catch (error) {
+    console.error('上传到achievement-images桶时发生错误:', error);
+    return { success: false, error: '上传过程中发生未知错误' };
+  }
+};
+
+/**
+ * 删除achievement-images桶中的图片
+ * @param filePath 文件路径或完整URL
+ */
+export const deleteFromAchievementImagesBucket = async (filePath: string): Promise<boolean> => {
+  try {
+    // 如果传入的是完整URL，提取文件路径
+    const extractedFilePath = filePath.includes('achievement-images/') 
+      ? filePath.split('achievement-images/')[1] 
+      : filePath;
+    
+    console.log('从achievement-images桶删除图片:', extractedFilePath);
+    
+    const { error } = await supabase.storage
+      .from('achievement-images')
+      .remove([extractedFilePath]);
+
+    if (error) {
+      console.error('从achievement-images桶删除图片失败:', error);
+      return false;
+    }
+
+    console.log('从achievement-images桶删除图片成功');
+    return true;
+  } catch (error) {
+    console.error('从achievement-images桶删除图片时发生错误:', error);
+    return false;
+  }
+};
+
+// =====================================
+// achievement-videos 存储桶相关功能（项目演示视频）
+// =====================================
+
+/**
+ * 检查achievement-videos存储桶是否存在
+ */
+export const checkAchievementVideosBucket = async (): Promise<boolean> => {
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    return buckets?.some(bucket => bucket.name === 'achievement-videos') || false;
+  } catch (error) {
+    console.error('检查achievement-videos存储桶时发生错误:', error);
+    return false;
+  }
+};
+
+/**
+ * 创建achievement-videos存储桶
+ */
+export const createAchievementVideosBucket = async (): Promise<boolean> => {
+  try {
+    // 检查桶是否已存在
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const achievementVideosBucket = buckets?.find(bucket => bucket.name === 'achievement-videos');
+    
+    if (achievementVideosBucket) {
+      console.log('achievement-videos存储桶已存在');
+      return true;
+    }
+
+    // 创建新桶
+    const { error } = await supabase.storage.createBucket('achievement-videos', {
+      public: true, // 设置为公开访问
+      allowedMimeTypes: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'], // 允许常见视频格式
+      fileSizeLimit: 100 * 1024 * 1024, // 限制文件大小为100MB
+    });
+
+    if (error) {
+      console.error('创建achievement-videos存储桶失败:', error);
+      return false;
+    }
+
+    console.log('achievement-videos存储桶创建成功');
+    return true;
+  } catch (error) {
+    console.error('创建achievement-videos存储桶时发生错误:', error);
+    return false;
+  }
+};
+
+/**
+ * 上传视频到achievement-videos桶
+ * @param file 要上传的文件
+ * @param fileName 文件名（可选，默认使用时间戳+原文件名）
+ * @param filePath 文件路径（可选，例如：achievements/userId/fileName）
+ * @returns 上传结果对象
+ */
+export const uploadToAchievementVideosBucket = async (file: File, fileName?: string, filePath?: string): Promise<UploadResult> => {
+  try {
+    // 验证文件类型
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    if (!allowedVideoTypes.includes(file.type)) {
+      return { success: false, error: '只能上传视频文件（MP4、WebM、OGG、MOV格式）' };
+    }
+
+    // 验证文件大小（100MB）
+    if (file.size > 100 * 1024 * 1024) {
+      return { success: false, error: '视频大小不能超过100MB' };
+    }
+
+    // 确保桶存在
+    const bucketExists = await createAchievementVideosBucket();
+    if (!bucketExists) {
+      return { success: false, error: '无法创建或访问achievement-videos存储桶' };
+    }
+
+    // 生成唯一文件名和路径
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 8);
+    const finalFileName = fileName || `${timestamp}_${randomString}_${file.name}`;
+    const finalFilePath = filePath || `achievements/${finalFileName}`;
+    
+    console.log('开始上传到achievement-videos桶:', finalFilePath);
+    
+    // 上传文件
+    const startTime = Date.now();
+    const { error } = await supabase.storage
+      .from('achievement-videos')
+      .upload(finalFilePath, file, {
+        cacheControl: '3600',
+        upsert: true, // 允许覆盖，支持更新视频
+      });
+
+    const uploadTime = Date.now() - startTime;
+    console.log(`上传耗时: ${uploadTime}ms`);
+
+    if (error) {
+      console.error('上传到achievement-videos桶失败:', error);
+      return { success: false, error: `上传失败: ${error.message}` };
+    }
+
+    // 获取公共URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('achievement-videos')
+      .getPublicUrl(finalFilePath);
+
+    console.log('视频上传到achievement-videos桶成功:', publicUrl);
+    
+    return { 
+      success: true, 
+      url: publicUrl,
+      error: undefined
+    };
+  } catch (error) {
+    console.error('上传到achievement-videos桶时发生错误:', error);
+    return { success: false, error: '上传过程中发生未知错误' };
+  }
+};
+
+/**
+ * 删除achievement-videos桶中的视频
+ * @param filePath 文件路径或完整URL
+ */
+export const deleteFromAchievementVideosBucket = async (filePath: string): Promise<boolean> => {
+  try {
+    // 如果传入的是完整URL，提取文件路径
+    const extractedFilePath = filePath.includes('achievement-videos/') 
+      ? filePath.split('achievement-videos/')[1] 
+      : filePath;
+    
+    console.log('从achievement-videos桶删除视频:', extractedFilePath);
+    
+    const { error } = await supabase.storage
+      .from('achievement-videos')
+      .remove([extractedFilePath]);
+
+    if (error) {
+      console.error('从achievement-videos桶删除视频失败:', error);
+      return false;
+    }
+
+    console.log('从achievement-videos桶删除视频成功');
+    return true;
+  } catch (error) {
+    console.error('从achievement-videos桶删除视频时发生错误:', error);
+    return false;
+  }
+};

@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { AchievementService } from '../../lib/achievementService';
 import { AchievementType, User } from '../../types/achievement';
+import { uploadToAchievementImagesBucket, uploadToAchievementVideosBucket } from '../../services/supabaseStorageService';
 import styles from './styles.module.css';
 
 interface Collaborator {
@@ -59,6 +60,8 @@ const ProjectIntroPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [instructors, setInstructors] = useState<User[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState('');
+  const [studentUsers, setStudentUsers] = useState<User[]>([]); // 所有学生用户（role=1）
+  const [projectLeaderId, setProjectLeaderId] = useState(''); // 项目负责人ID
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingAchievementId, setEditingAchievementId] = useState<string>('');
   
@@ -85,6 +88,7 @@ const ProjectIntroPage: React.FC = () => {
     loadAchievementTypes();
     loadInstructors();
     loadCollaboratorUsers();
+    loadStudentUsers();
     
     // 如果是编辑模式，在加载完成果类型后再加载成果数据
     if (editId) {
@@ -131,6 +135,21 @@ const ProjectIntroPage: React.FC = () => {
     }
   };
 
+  const loadStudentUsers = async () => {
+    try {
+      const result = await AchievementService.getUsersByRole(1); // 获取所有学生用户（role=1）
+      if (result.success && result.data) {
+        setStudentUsers(result.data);
+        // 如果没有选择项目负责人，默认设置为当前用户
+        if (!projectLeaderId && user?.id) {
+          setProjectLeaderId(user.id);
+        }
+      }
+    } catch (error) {
+      console.error('加载学生用户列表失败:', error);
+    }
+  };
+
   // 加载要编辑的成果数据
   const loadEditAchievement = async (achievementId: string) => {
     try {
@@ -144,6 +163,7 @@ const ProjectIntroPage: React.FC = () => {
         setProjectName(achievement.title || '');
         setProjectDescription(achievement.description || '');
         setProjectLeader(user?.full_name || user?.username || '');
+        setProjectLeaderId(achievement.publisher_id || user?.id || '');
         
         // 设置项目类型
         if (achievement.type_id && achievementTypes.length > 0) {
@@ -443,33 +463,33 @@ const ProjectIntroPage: React.FC = () => {
         }
       }
 
-      // 上传封面图片（草稿也保存封面）
+      // 上传封面图片到achievement-images桶
       let coverUrl = '';
       if (photos.length > 0) {
         const coverPhoto = photos[0];
         const fileName = `cover_${Date.now()}_${coverPhoto.id}.jpg`;
         const filePath = `achievements/${user.id}/${fileName}`;
-        const uploadResult = await AchievementService.uploadFile(coverPhoto.file, 'achievement-images', filePath);
+        const uploadResult = await uploadToAchievementImagesBucket(coverPhoto.file, fileName, filePath);
         
         if (uploadResult.success && uploadResult.url) {
           coverUrl = uploadResult.url;
         } else {
-          console.warn('封面图片上传失败:', uploadResult.message);
+          console.warn('封面图片上传失败:', uploadResult.error);
         }
       }
 
-      // 上传演示视频（草稿也保存视频）
+      // 上传演示视频到achievement-videos桶
       let videoUrl = '';
       if (videos.length > 0) {
         const demoVideo = videos[0];
         const fileName = `video_${Date.now()}_${demoVideo.id}.mp4`;
         const filePath = `achievements/${user.id}/${fileName}`;
-        const uploadResult = await AchievementService.uploadFile(demoVideo.file, 'achievement-videos', filePath);
+        const uploadResult = await uploadToAchievementVideosBucket(demoVideo.file, fileName, filePath);
         
         if (uploadResult.success && uploadResult.url) {
           videoUrl = uploadResult.url;
         } else {
-          console.warn('演示视频上传失败:', uploadResult.message);
+          console.warn('演示视频上传失败:', uploadResult.error);
         }
       }
 
@@ -490,7 +510,7 @@ const ProjectIntroPage: React.FC = () => {
         type_id: typeId,
         cover_url: coverUrl,
         video_url: videoUrl,
-        publisher_id: user.id,
+        publisher_id: projectLeaderId || user.id, // 使用选中的项目负责人ID
         instructor_id: selectedInstructorId || user.id // 使用选中的指导老师，如果没有选中则使用学生自己
       };
 
@@ -544,33 +564,33 @@ const ProjectIntroPage: React.FC = () => {
         }
       }
 
-      // 上传封面图片（只使用第一张照片作为封面）
+      // 上传封面图片到achievement-images桶
       let coverUrl = '';
       if (photos.length > 0) {
         const coverPhoto = photos[0];
         const fileName = `cover_${Date.now()}_${coverPhoto.id}.jpg`;
         const filePath = `achievements/${user.id}/${fileName}`;
-        const uploadResult = await AchievementService.uploadFile(coverPhoto.file, 'achievement-images', filePath);
+        const uploadResult = await uploadToAchievementImagesBucket(coverPhoto.file, fileName, filePath);
         
         if (uploadResult.success && uploadResult.url) {
           coverUrl = uploadResult.url;
         } else {
-          console.warn('封面图片上传失败:', uploadResult.message);
+          console.warn('封面图片上传失败:', uploadResult.error);
         }
       }
 
-      // 上传演示视频（只使用第一个视频）
+      // 上传演示视频到achievement-videos桶
       let videoUrl = '';
       if (videos.length > 0) {
         const demoVideo = videos[0];
         const fileName = `video_${Date.now()}_${demoVideo.id}.mp4`;
         const filePath = `achievements/${user.id}/${fileName}`;
-        const uploadResult = await AchievementService.uploadFile(demoVideo.file, 'achievement-videos', filePath);
+        const uploadResult = await uploadToAchievementVideosBucket(demoVideo.file, fileName, filePath);
         
         if (uploadResult.success && uploadResult.url) {
           videoUrl = uploadResult.url;
         } else {
-          console.warn('演示视频上传失败:', uploadResult.message);
+          console.warn('演示视频上传失败:', uploadResult.error);
         }
       }
 
@@ -589,7 +609,7 @@ const ProjectIntroPage: React.FC = () => {
         type_id: selectedType.id,
         cover_url: coverUrl,
         video_url: videoUrl,
-        publisher_id: user.id,
+        publisher_id: projectLeaderId || user.id, // 使用选中的项目负责人ID
         instructor_id: selectedInstructorId || user.id, // 使用选中的指导老师，如果没有选中则使用学生自己
         parents_id: selectedCollaboratorId || null, // 添加协作者ID
         status: 'pending' as const
@@ -864,14 +884,23 @@ const ProjectIntroPage: React.FC = () => {
                 </div>
                 <div>
                   <label htmlFor="project-leader" className="block text-sm font-medium text-text-secondary mb-2">项目负责人</label>
-                  <input 
-                    type="text" 
+                  <select 
                     id="project-leader"
-                    value={projectLeader}
-                    onChange={(e) => setProjectLeader(e.target.value)}
-                    className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus}`}
-                    placeholder="请输入项目负责人"
-                  />
+                    value={projectLeaderId}
+                    onChange={(e) => {
+                      const selectedUser = studentUsers.find(u => u.id === e.target.value);
+                      setProjectLeaderId(e.target.value);
+                      setProjectLeader(selectedUser?.full_name || selectedUser?.username || '');
+                    }}
+                    className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus} ${styles.customSelect}`}
+                  >
+                    <option value="">请选择项目负责人</option>
+                    {studentUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.username} ({user.email})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label htmlFor="project-type" className="block text-sm font-medium text-text-secondary mb-2">项目类型</label>
@@ -901,7 +930,9 @@ const ProjectIntroPage: React.FC = () => {
                     className={`flex-1 px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus} ${styles.customSelect}`}
                   >
                     <option value="">请选择协作者</option>
-                    {collaboratorUsers.map(user => (
+                    {collaboratorUsers
+                      .filter(user => user.id !== projectLeaderId) // 排除当前用户和项目负责人
+                      .map(user => (
                       <option key={user.id} value={user.id}>
                         {user.full_name || user.username} ({user.email})
                       </option>
