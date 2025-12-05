@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>教师端图片处理测试</title>
+</head>
+<body>
+    <h1>模拟教师端富文本编辑器图片处理</h1>
+    
+    <h2>测试1: FileReader base64 方式（当前教师端使用）</h2>
+    <input type="file" id="base64Input" accept="image/*">
+    <div id="base64Editor" contenteditable="true" style="border: 1px solid #ccc; min-height: 100px; padding: 10px;"></div>
+    <button onclick="testBase64Processing()">处理 base64 图片</button>
+    <div id="base64Result"></div>
+    
+    <h2>测试2: Blob URL 方式（学生端使用）</h2>
+    <input type="file" id="blobInput" accept="image/*">
+    <div id="blobEditor" contenteditable="true" style="border: 1px solid #ccc; min-height: 100px; padding: 10px;"></div>
+    <button onclick="testBlobProcessing()">处理 Blob URL 图片</button>
+    <div id="blobResult"></div>
+
+    <script>
+        // 模拟教师端当前使用的 RichTextEditor.insertImage 方法
+        function insertImageBase64(file, editableElement) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgElement = document.createElement('img');
+                imgElement.src = e.target.result; // base64 数据
+                imgElement.alt = file.name;
+                imgElement.style.maxWidth = '100%';
+                imgElement.style.height = 'auto';
+                editableElement.appendChild(imgElement);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 模拟学生端当前使用的方式（创建 Blob URL）
+        function insertImageBlob(file, editableElement) {
+            const blobUrl = URL.createObjectURL(file);
+            const imgElement = document.createElement('img');
+            imgElement.src = blobUrl; // Blob URL
+            imgElement.alt = file.name;
+            imgElement.style.maxWidth = '100%';
+            imgElement.style.height = 'auto';
+            editableElement.appendChild(imgElement);
+        }
+
+        // 教师端文件选择处理
+        document.getElementById('base64Input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                insertImageBase64(file, document.getElementById('base64Editor'));
+            }
+        });
+
+        // 学生端文件选择处理
+        document.getElementById('blobInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                insertImageBlob(file, document.getElementById('blobEditor'));
+            }
+        });
+
+        // 模拟 processRichTextImages 处理 base64 图片
+        function processBase64Images(htmlContent) {
+            console.log('处理 base64 图片...');
+            console.log('HTML 内容:', htmlContent);
+            
+            // 检查是否有 base64 图片
+            const hasBase64 = htmlContent.includes('data:image');
+            console.log('是否包含 base64 图片:', hasBase64);
+            
+            if (hasBase64) {
+                // 这里应该调用 AchievementService.processRichTextImages
+                // 模拟处理结果
+                return {
+                    success: true,
+                    processedContent: htmlContent // 假设处理成功
+                };
+            }
+            
+            return {
+                success: true,
+                processedContent: htmlContent
+            };
+        }
+
+        // 模拟 processRichTextImages 处理 Blob URL 图片
+        function processBlobImages(htmlContent) {
+            console.log('处理 Blob URL 图片...');
+            console.log('HTML 内容:', htmlContent);
+            
+            // 检查是否有 Blob URL 图片
+            const hasBlob = htmlContent.includes('blob:');
+            console.log('是否包含 Blob URL 图片:', hasBlob);
+            
+            if (hasBlob) {
+                // 这里应该调用 AchievementService.processRichTextImages
+                // 模拟处理结果
+                return {
+                    success: true,
+                    processedContent: htmlContent.replace(/blob:[^"']+/g, 'https://example.supabase.co/storage/v1/object/public/achievement-images/test-image.png')
+                };
+            }
+            
+            return {
+                success: true,
+                processedContent: htmlContent
+            };
+        }
+
+        function testBase64Processing() {
+            const editor = document.getElementById('base64Editor');
+            const htmlContent = editor.innerHTML;
+            const result = processBase64Images(htmlContent);
+            
+            document.getElementById('base64Result').innerHTML = `
+                <h3>处理结果:</h3>
+                <p>成功: ${result.success}</p>
+                <p>处理后的内容:</p>
+                <pre>${result.processedContent}</pre>
+            `;
+        }
+
+        function testBlobProcessing() {
+            const editor = document.getElementById('blobEditor');
+            const htmlContent = editor.innerHTML;
+            const result = processBlobImages(htmlContent);
+            
+            document.getElementById('blobResult').innerHTML = `
+                <h3>处理结果:</h3>
+                <p>成功: ${result.success}</p>
+                <p>处理后的内容:</p>
+                <pre>${result.processedContent}</pre>
+            `;
+        }
+    </script>
+</body>
+</html>
