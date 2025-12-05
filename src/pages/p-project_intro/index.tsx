@@ -666,12 +666,49 @@ const ProjectIntroPage: React.FC = () => {
         const demoVideo = videos[0];
         const fileName = `video_${Date.now()}_${demoVideo.id}.mp4`;
         const filePath = `achievements/${projectLeaderId || user.id}/${fileName}`; // 使用publisher_id分类
+        
+        console.log('=== 演示视频上传开始 ===');
+        console.log('视频文件:', demoVideo.file);
+        console.log('视频文件类型:', demoVideo.file?.type);
+        console.log('视频文件大小:', (demoVideo.file?.size / 1024 / 1024).toFixed(2) + 'MB');
+        console.log('视频文件名:', fileName);
+        console.log('视频文件路径:', filePath);
+        console.log('是否使用直接模式:', directUseBucket);
+        
+        if (!demoVideo.file) {
+          console.error('❌ 视频file对象不存在');
+          return;
+        }
+        
         const uploadResult = await uploadToAchievementVideosBucket(demoVideo.file, fileName, filePath, directUseBucket);
         
         if (uploadResult.success && uploadResult.url) {
           videoUrl = uploadResult.url;
+          console.log('✅ 演示视频上传成功:', videoUrl);
+          console.log('URL格式检查:', videoUrl.includes('https://'));
+          console.log('桶名称检查:', videoUrl.includes('achievement-videos'));
         } else {
-          console.warn('演示视频上传失败:', uploadResult.error);
+          console.warn('❌ 演示视频上传失败:', uploadResult.error);
+          
+          // 如果是RLS策略错误且在直接使用模式，提供帮助信息
+          if (directUseBucket && uploadResult.error?.includes('row-level security policy')) {
+            console.warn(`
+🚨 RLS策略阻止了achievement-videos桶的上传！
+
+🔧 解决方案：
+1. 打开 Supabase 控制台: https://supabase.com/dashboard/project/vntvrdkjtfdcnvwgrubo/storage
+2. 点击 "New bucket"
+3. 桶名: achievement-videos
+4. Public bucket: ✅
+5. File size limit: 200MB
+6. Allowed MIME types: video/mp4, video/webm, video/ogg, video/quicktime
+7. 点击 "Save"
+
+💻 或者使用 🎬 橙色按钮复制SQL代码执行
+
+✅ 创建完成后，上传功能将正常工作
+            `);
+          }
         }
       }
 
@@ -799,12 +836,49 @@ const ProjectIntroPage: React.FC = () => {
         const demoVideo = videos[0];
         const fileName = `video_${Date.now()}_${demoVideo.id}.mp4`;
         const filePath = `achievements/${projectLeaderId || user.id}/${fileName}`; // 使用publisher_id分类
+        
+        console.log('=== 演示视频上传开始 ===');
+        console.log('视频文件:', demoVideo.file);
+        console.log('视频文件类型:', demoVideo.file?.type);
+        console.log('视频文件大小:', (demoVideo.file?.size / 1024 / 1024).toFixed(2) + 'MB');
+        console.log('视频文件名:', fileName);
+        console.log('视频文件路径:', filePath);
+        console.log('是否使用直接模式:', directUseBucket);
+        
+        if (!demoVideo.file) {
+          console.error('❌ 视频file对象不存在');
+          return;
+        }
+        
         const uploadResult = await uploadToAchievementVideosBucket(demoVideo.file, fileName, filePath, directUseBucket);
         
         if (uploadResult.success && uploadResult.url) {
           videoUrl = uploadResult.url;
+          console.log('✅ 演示视频上传成功:', videoUrl);
+          console.log('URL格式检查:', videoUrl.includes('https://'));
+          console.log('桶名称检查:', videoUrl.includes('achievement-videos'));
         } else {
-          console.warn('演示视频上传失败:', uploadResult.error);
+          console.warn('❌ 演示视频上传失败:', uploadResult.error);
+          
+          // 如果是RLS策略错误且在直接使用模式，提供帮助信息
+          if (directUseBucket && uploadResult.error?.includes('row-level security policy')) {
+            console.warn(`
+🚨 RLS策略阻止了achievement-videos桶的上传！
+
+🔧 解决方案：
+1. 打开 Supabase 控制台: https://supabase.com/dashboard/project/vntvrdkjtfdcnvwgrubo/storage
+2. 点击 "New bucket"
+3. 桶名: achievement-videos
+4. Public bucket: ✅
+5. File size limit: 200MB
+6. Allowed MIME types: video/mp4, video/webm, video/ogg, video/quicktime
+7. 点击 "Save"
+
+💻 或者使用 🎬 橙色按钮复制SQL代码执行
+
+✅ 创建完成后，上传功能将正常工作
+            `);
+          }
         }
       }
 
@@ -1315,6 +1389,33 @@ const ProjectIntroPage: React.FC = () => {
                       title="直接使用存储桶（不检查）"
                     >
                       <i className="fas fa-check-circle"></i>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const sql = `-- 为 achievement-videos 存储桶创建宽松的 RLS 策略
+-- 允许所有用户上传和访问
+DROP POLICY IF EXISTS "Allow public uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public reads" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public updates" ON storage.objects;
+
+CREATE POLICY "Allow all operations on achievement-videos" ON storage.objects
+FOR ALL USING (bucket_id = 'achievement-videos')
+WITH CHECK (bucket_id = 'achievement-videos');
+
+-- 或者使用更宽松的策略
+CREATE POLICY "Enable video uploads" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'achievement-videos');
+                        
+CREATE POLICY "Enable video access" ON storage.objects
+FOR SELECT USING (bucket_id = 'achievement-videos');`;
+                        
+                        navigator.clipboard.writeText(sql);
+                        alert('achievement-videos桶RLS策略SQL已复制到剪贴板！\n\n请在 Supabase SQL Editor 中执行');
+                      }}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded"
+                      title="复制创建achievement-videos桶RLS策略的SQL"
+                    >
+                      <i className="fas fa-shield-alt"></i>
                     </button>
                     <button 
                       onClick={() => {
