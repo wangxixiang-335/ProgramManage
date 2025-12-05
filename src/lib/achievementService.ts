@@ -478,6 +478,32 @@ export class AchievementService {
           
           uploadPromises.push(uploadPromise);
         }
+        // 如果是Blob URL（临时URL），需要上传
+        else if (src.startsWith('blob:')) {
+          console.log('检测到Blob URL，准备上传:', src);
+          
+          const uploadPromise = fetch(src)
+            .then(response => response.blob())
+            .then(blob => {
+              // 从blob创建File对象
+              const mimeType = blob.type || 'image/png';
+              const extension = mimeType.split('/')[1] || 'png';
+              const fileName = `image_${Date.now()}_${index}.${extension}`;
+              const filePath = `achievements/${userId}/${fileName}`;
+              
+              return this.uploadFile(new File([blob], fileName, { type: mimeType }), 'achievement-images', filePath)
+                .then(result => ({
+                  originalSrc: src,
+                  newSrc: result.url
+                }));
+            })
+            .catch(error => ({
+              originalSrc: src,
+              error: error instanceof Error ? error.message : 'Blob upload failed'
+            }));
+          
+          uploadPromises.push(uploadPromise);
+        }
       });
 
       const results = await Promise.all(uploadPromises);

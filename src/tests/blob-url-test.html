@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blob URL 处理测试</title>
+</head>
+<body>
+    <h1>Blob URL 处理测试</h1>
+    <input type="file" id="imageInput" accept="image/*">
+    <div id="editor" contenteditable="true" style="border: 1px solid #ccc; min-height: 200px; padding: 10px;"></div>
+    <button onclick="testProcessImages()">处理图片</button>
+    <div id="result"></div>
+
+    <script>
+        // 模拟 Blob URL 创建和图片插入
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const blobUrl = URL.createObjectURL(file);
+                const img = document.createElement('img');
+                img.src = blobUrl;
+                img.style.maxWidth = '100%';
+                document.getElementById('editor').appendChild(img);
+            }
+        });
+
+        // 模拟 processRichTextImages 函数
+        async function processRichTextImages(htmlContent, userId) {
+            try {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlContent;
+                
+                const images = tempDiv.querySelectorAll('img');
+                const uploadPromises = [];
+
+                images.forEach((img, index) => {
+                    const src = img.src;
+                    
+                    // 如果是 Blob URL，需要上传
+                    if (src.startsWith('blob:')) {
+                        console.log('检测到 Blob URL，准备上传:', src);
+                        
+                        const uploadPromise = fetch(src)
+                            .then(response => response.blob())
+                            .then(blob => {
+                                // 模拟上传到 Supabase Storage
+                                console.log('上传图片:', blob.type, blob.size);
+                                // 这里返回模拟的永久 URL
+                                return `https://example.supabase.co/storage/v1/object/public/achievement-images/achievements/${userId}/image_${Date.now()}_${index}.png`;
+                            })
+                            .catch(error => {
+                                console.error('Blob 上传失败:', error);
+                                return null;
+                            });
+                        
+                        uploadPromises.push(uploadPromise);
+                    }
+                });
+
+                const results = await Promise.all(uploadPromises);
+                
+                // 替换 HTML 中的图片 URL
+                let processedHtml = htmlContent;
+                results.forEach((newSrc, index) => {
+                    if (newSrc) {
+                        const oldSrc = images[index].src;
+                        processedHtml = processedHtml.replace(oldSrc, newSrc);
+                    }
+                });
+
+                return { success: true, processedContent: processedHtml };
+            } catch (error) {
+                console.error('处理图片失败:', error);
+                return { success: false, message: error.message };
+            }
+        }
+
+        async function testProcessImages() {
+            const editor = document.getElementById('editor');
+            const htmlContent = editor.innerHTML;
+            
+            console.log('原始 HTML:', htmlContent);
+            
+            const result = await processRichTextImages(htmlContent, 'test-user');
+            
+            if (result.success) {
+                document.getElementById('result').innerHTML = `
+                    <h3>处理后的 HTML:</h3>
+                    <pre>${result.processedContent}</pre>
+                    <h3>渲染效果:</h3>
+                    <div>${result.processedContent}</div>
+                `;
+            } else {
+                document.getElementById('result').innerHTML = `<p style="color: red;">处理失败: ${result.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
