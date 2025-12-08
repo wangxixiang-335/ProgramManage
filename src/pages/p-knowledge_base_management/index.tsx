@@ -57,10 +57,7 @@ const KnowledgeBaseManagement: React.FC = () => {
     // 在实际应用中，这里会显示用户菜单
   };
 
-  const handleNotificationClick = () => {
-    console.log('打开通知面板');
-    // 在实际应用中，这里会显示通知面板
-  };
+
 
   return (
     <div className={styles.pageWrapper}>
@@ -80,14 +77,6 @@ const KnowledgeBaseManagement: React.FC = () => {
           
           {/* 右侧用户信息 */}
           <div className="flex items-center space-x-4">
-            <div 
-              className="relative cursor-pointer p-2 rounded-full hover:bg-gray-100"
-              onClick={handleNotificationClick}
-            >
-              <i className="fas fa-bell text-text-secondary"></i>
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </div>
-            
             <div 
               className="flex items-center space-x-2 cursor-pointer"
               onClick={handleUserProfileClick}

@@ -1402,6 +1402,53 @@ export class AchievementService {
       };
     }
   }
+
+  // 获取教师待审批的成果数量
+  static async getPendingAchievementsCount(instructorId: string): Promise<{ success: boolean; data?: number; message?: string }> {
+    try {
+      if (!instructorId) {
+        return { success: false, message: '教师ID为空' };
+      }
+
+      console.log('🔍 查询待审批数量 - 教师ID:', instructorId);
+
+      // 先查询所有相关记录，用于调试
+      const { data: allRecords, error: debugError } = await supabase
+        .from('achievements')
+        .select('id, title, status, instructor_id, publisher_id')
+        .eq('instructor_id', instructorId);
+
+      if (debugError) {
+        console.error('❌ 调试查询失败:', debugError);
+      } else {
+        console.log('📊 教师所有成果:', allRecords);
+        console.log('📊 状态分布:', allRecords?.reduce((acc: any, item: any) => {
+          acc[item.status] = (acc[item.status] || 0) + 1;
+          return acc;
+        }, {}));
+      }
+
+      // 查询待审批数量 - 使用正确的状态值：1 = pending
+      const { count, error } = await supabase
+        .from('achievements')
+        .select('*', { count: 'exact', head: true })
+        .eq('instructor_id', instructorId)
+        .eq('status', 1); // 1 = pending 状态（正确的值）
+
+      if (error) {
+        console.error('获取待审批数量失败:', error);
+        return { success: false, message: '获取待审批数量失败' };
+      }
+
+      console.log('🎯 待审批成果数量:', count);
+      return { success: true, data: count || 0 };
+
+      return { success: true, data: count };
+    } catch (error) {
+      console.error('获取待审批数量时发生错误:', error);
+      return { success: false, message: '获取待审批数量失败' };
+    }
+  }
 }
 
 export default AchievementService;

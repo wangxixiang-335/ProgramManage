@@ -61,7 +61,8 @@ export class AuthService {
           id: data.id,
           username: data.username,
           email: data.email,
-          role: data.role
+          role: data.role,
+          full_name: data.full_name
         }
       };
 
@@ -106,6 +107,7 @@ export class AuthService {
           email: data.email,
           password_hash: data.password_hash,
           role: data.role,
+          full_name: data.full_name,
           created_at: data.created_at,
           updated_at: data.updated_at
         }

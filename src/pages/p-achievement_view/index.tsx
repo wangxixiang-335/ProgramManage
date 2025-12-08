@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AchievementService } from '../../lib/achievementService';
 import { Achievement, User, AchievementWithUsers, AchievementType } from '../../types/achievement';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApproval } from '../../contexts/ApprovalContext';
 import styles from './styles.module.css';
 
 const AchievementViewPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { pendingCount } = useApproval();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('view-link');
   const [searchFilters, setSearchFilters] = useState({
@@ -166,9 +168,7 @@ const AchievementViewPage: React.FC = () => {
     setActiveNavItem(itemId);
   };
 
-  const handleNotificationClick = () => {
-    alert('通知功能开发中...');
-  };
+
 
   // 关闭详情模态框
   const handleCloseDetailModal = () => {
@@ -287,7 +287,7 @@ const AchievementViewPage: React.FC = () => {
                 >
                   <i className="fas fa-tasks w-6 text-center"></i>
                   <span className="ml-3">成果审批</span>
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">12</span>
+                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{pendingCount}</span>
                 </Link>
               </li>
               <li>
@@ -348,12 +348,7 @@ const AchievementViewPage: React.FC = () => {
               
               {/* 用户信息 */}
               <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <button className="text-text-secondary hover:text-secondary">
-                    <i className="fas fa-bell text-xl"></i>
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">3</span>
-                  </button>
-                </div>
+
                 <div className="flex items-center space-x-3">
                   <img 
                     src="https://s.coze.cn/image/Iy4-k7r4TIc/" 
@@ -361,7 +356,7 @@ const AchievementViewPage: React.FC = () => {
                     className="w-10 h-10 rounded-full object-cover border-2 border-secondary"
                   />
                   <div className="hidden md:block">
-                    <p className="text-sm font-medium text-text-primary">{user?.full_name || user?.username || '教师'}</p>
+                    <p className="text-sm font-medium text-text-primary">{user?.full_name || '教师'}</p>
                     <p className="text-xs text-text-muted">计算机科学与技术系</p>
                   </div>
                 </div>

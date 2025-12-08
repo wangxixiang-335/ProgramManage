@@ -682,12 +682,6 @@ const AchievementEditPage: React.FC = () => {
               
               {/* 用户信息 */}
               <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <button className="text-text-secondary hover:text-secondary">
-                    <i className="fas fa-bell text-xl"></i>
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">3</span>
-                  </button>
-                </div>
                 <div className="flex items-center space-x-3">
                   <img 
                     src="https://s.coze.cn/image/Iy4-k7r4TIc/" 
