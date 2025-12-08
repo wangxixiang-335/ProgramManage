@@ -276,7 +276,39 @@ const ProjectIntroPage: React.FC = () => {
   // 处理富文本编辑器内容变化
   const handleRichTextChange = (e: React.FormEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
-    setProjectDescription(target.innerHTML);
+    const originalContent = target.innerHTML;
+    
+    // 实时清理内容，只保留img标签
+    const cleanedContent = AchievementService.cleanDescriptionForStorage(originalContent);
+    
+    // 更新编辑器内容为清理后的内容
+    if (cleanedContent !== originalContent) {
+      // 设置光标位置（尽量保持用户体验）
+      const selection = window.getSelection();
+      const range = selection?.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      const startOffset = range?.startOffset || 0;
+      
+      target.innerHTML = cleanedContent;
+      
+      // 尝试恢复光标位置
+      try {
+        if (range) {
+          const newRange = document.createRange();
+          const textNode = target.firstChild;
+          if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+            newRange.setStart(textNode, Math.min(startOffset, textNode.textContent?.length || 0));
+            newRange.collapse(true);
+            selection?.removeAllRanges();
+            selection?.addRange(newRange);
+          }
+        }
+      } catch (error) {
+        // 如果恢复光标失败，简单设置焦点
+        target.focus();
+      }
+    }
+    
+    setProjectDescription(cleanedContent);
   };
 
   // 富文本编辑器工具栏操作
@@ -621,7 +653,11 @@ const ProjectIntroPage: React.FC = () => {
       if (projectDescription) {
         const imageProcessResult = await AchievementService.processRichTextImages(projectDescription, user.id);
         if (imageProcessResult.success && imageProcessResult.processedContent) {
-          processedDescription = imageProcessResult.processedContent;
+          // 清理HTML内容，只保留img标签
+          processedDescription = AchievementService.cleanDescriptionForStorage(imageProcessResult.processedContent);
+        } else {
+          // 如果图片处理失败，直接清理原始内容
+          processedDescription = AchievementService.cleanDescriptionForStorage(projectDescription);
         }
       }
 
@@ -791,7 +827,11 @@ const ProjectIntroPage: React.FC = () => {
       if (projectDescription) {
         const imageProcessResult = await AchievementService.processRichTextImages(projectDescription, user.id);
         if (imageProcessResult.success && imageProcessResult.processedContent) {
-          processedDescription = imageProcessResult.processedContent;
+          // 清理HTML内容，只保留img标签
+          processedDescription = AchievementService.cleanDescriptionForStorage(imageProcessResult.processedContent);
+        } else {
+          // 如果图片处理失败，直接清理原始内容
+          processedDescription = AchievementService.cleanDescriptionForStorage(projectDescription);
         }
       }
 
@@ -1340,6 +1380,29 @@ const ProjectIntroPage: React.FC = () => {
                     </button>
                     <div className="w-px h-6 bg-border-light mx-1"></div>
                     <button 
+                      onClick={() => {
+                        // 插入换行符
+                        if (richTextEditorRef.current) {
+                          const selection = window.getSelection();
+                          const range = selection?.rangeCount > 0 ? selection.getRangeAt(0) : null;
+                          if (range) {
+                            range.deleteContents();
+                            const br = document.createElement('br');
+                            range.insertNode(br);
+                            range.setStartAfter(br);
+                            range.collapse(true);
+                            selection?.removeAllRanges();
+                            selection?.addRange(range);
+                          }
+                        }
+                      }}
+                      className="p-2 text-text-secondary hover:bg-gray-200 rounded"
+                      title="插入换行"
+                    >
+                      <i className="fas fa-level-down-alt"></i>
+                    </button>
+                    <div className="w-px h-6 bg-border-light mx-1"></div>
+                    <button 
                       onClick={() => handleEditorCommand('insertImage')}
                       className="p-2 text-text-secondary hover:bg-gray-200 rounded"
                     >
@@ -1474,14 +1537,18 @@ FOR UPDATE WITH CHECK (bucket_id = 'achievement-images');`;
                       <i className="fas fa-code"></i>
                     </button>
                   </div>
-                  {/* 富文本编辑区域 */}
-                  <div 
-                    ref={richTextEditorRef}
-                    className="p-4 min-h-[300px] focus:outline-none"
-                    contentEditable="true"
-                    onInput={handleRichTextChange}
-                    suppressContentEditableWarning={true}
-                  ></div>
+              {/* 富文本编辑区域 */}
+              <div 
+                ref={richTextEditorRef}
+                className="p-4 min-h-[300px] focus:outline-none"
+                contentEditable="true"
+                onInput={handleRichTextChange}
+                suppressContentEditableWarning={true}
+              ></div>
+              <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                <i className="fas fa-info-circle mr-1"></i>
+                提示：项目描述将只保留图片标签(&lt;img src&gt;)、换行标签(&lt;br&gt;)和纯文本，其他HTML标签会被自动移除
+              </div>
                   <input 
                     ref={imageInsertRef}
                     type="file" 
