@@ -291,9 +291,7 @@ const UserManagement: React.FC = () => {
     console.log('打开用户菜单');
   };
 
-  const handleNotificationClick = () => {
-    console.log('打开通知面板');
-  };
+
 
   // 打开添加学生弹窗
   const handleOpenAddStudentModal = async (classId: string) => {
@@ -643,14 +641,6 @@ const UserManagement: React.FC = () => {
           
           {/* 右侧用户信息 */}
           <div className="flex items-center space-x-4">
-            <div 
-              className="relative cursor-pointer p-2 rounded-full hover:bg-gray-100"
-              onClick={handleNotificationClick}
-            >
-              <i className="fas fa-bell text-text-secondary"></i>
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </div>
-            
             <div 
               className="flex items-center space-x-2 cursor-pointer"
               onClick={handleUserProfileClick}

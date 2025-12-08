@@ -87,6 +87,7 @@ export interface UpdateAchievementRequest extends Partial<CreateAchievementReque
 export interface User {
   id: string;
   username: string;
+  full_name?: string;
   email: string;
   role: number;
   created_at: string;
