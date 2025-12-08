@@ -5,10 +5,12 @@ import { Link } from 'react-router-dom';
 import { AchievementService } from '../../lib/achievementService';
 import { AchievementWithUsers, AchievementStatus, ApprovalFilters, AchievementType } from '../../types/achievement';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApproval } from '../../contexts/ApprovalContext';
 import styles from './styles.module.css';
 
 const AchievementApprovalPage: React.FC = () => {
   const { user } = useAuth();
+  const { pendingCount, refreshPendingCount } = useApproval();
   const [currentUser, setCurrentUser] = useState(user);
   
   // 获取当前教师ID
@@ -64,11 +66,13 @@ const AchievementApprovalPage: React.FC = () => {
   // 加载初始数据
   useEffect(() => {
     loadAchievementTypes();
-  }, []);
+    refreshPendingCount(); // 刷新待审批数量
+  }, [currentInstructorId]); // 当教师ID变化时重新加载
   
   // 加载成果数据
   useEffect(() => {
     loadAchievements();
+    refreshPendingCount(); // 刷新页面时也更新待审批数量
   }, [currentPage, statusFilter]);
   
   // 加载成果类型
@@ -83,6 +87,8 @@ const AchievementApprovalPage: React.FC = () => {
     }
   };
   
+
+
   const loadAchievements = async () => {
     setIsLoading(true);
     
@@ -252,8 +258,9 @@ const AchievementApprovalPage: React.FC = () => {
         setCurrentAchievementId(null);
         setCurrentAchievement(null);
         
-        // 刷新列表
+        // 刷新列表和待审批数量
         await loadAchievements();
+        await refreshPendingCount();
       } else {
         alert('驳回失败：' + result.message);
       }
@@ -300,8 +307,9 @@ const AchievementApprovalPage: React.FC = () => {
         setCurrentAchievementId(null);
         setCurrentAchievement(null);
         
-        // 刷新列表
+        // 刷新列表和待审批数量
         await loadAchievements();
+        await refreshPendingCount();
       } else {
         alert('审批失败：' + result.message);
       }
@@ -411,7 +419,9 @@ const AchievementApprovalPage: React.FC = () => {
                 >
                   <i className="fas fa-tasks w-6 text-center"></i>
                   <span className="ml-3">成果审批</span>
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">12</span>
+                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                    {pendingCount > 0 ? pendingCount : '0'}
+                  </span>
                 </Link>
               </li>
               <li>

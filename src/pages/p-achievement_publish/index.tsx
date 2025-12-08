@@ -6,6 +6,7 @@ import { AchievementService } from '../../lib/achievementService';
 import { RichTextEditor } from '../../lib/richTextEditor';
 import { ACHIEVEMENT_TYPES, AchievementType, User } from '../../types/achievement';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApproval } from '../../contexts/ApprovalContext';
 import styles from './styles.module.css';
 
 interface FileUpload {
@@ -91,6 +92,7 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
 const AchievementPublishPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { pendingCount } = useApproval();
   const [currentUser, setCurrentUser] = useState(user);
   
   // 获取当前用户ID
@@ -694,7 +696,7 @@ const AchievementPublishPage: React.FC = () => {
                 >
                   <i className="fas fa-tasks w-6 text-center"></i>
                   <span className="ml-3">成果审批</span>
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">12</span>
+                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{pendingCount}</span>
                 </Link>
               </li>
               <li>

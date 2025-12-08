@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AchievementService } from '../../lib/achievementService';
 import { Achievement, User, AchievementWithUsers, AchievementType } from '../../types/achievement';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApproval } from '../../contexts/ApprovalContext';
 import styles from './styles.module.css';
 
 const AchievementViewPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { pendingCount } = useApproval();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('view-link');
   const [searchFilters, setSearchFilters] = useState({
@@ -287,7 +289,7 @@ const AchievementViewPage: React.FC = () => {
                 >
                   <i className="fas fa-tasks w-6 text-center"></i>
                   <span className="ml-3">成果审批</span>
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">12</span>
+                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{pendingCount}</span>
                 </Link>
               </li>
               <li>
