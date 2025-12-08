@@ -142,8 +142,10 @@ const ProjectIntroPage: React.FC = () => {
       if (result.success && result.data) {
         setStudentUsers(result.data);
         // 如果没有选择项目负责人，默认设置为当前用户
-        if (!projectLeaderId && user?.id) {
+        // 强制设置为当前学生用户
+        if (user?.id) {
           setProjectLeaderId(user.id);
+          setProjectLeader(user?.full_name || user?.username || '当前学生');
         }
       }
     } catch (error) {
@@ -985,7 +987,7 @@ const ProjectIntroPage: React.FC = () => {
         if (!isEditMode) {
           // 只在非编辑模式下重置表单
           setProjectName('');
-          setProjectLeader('');
+          // 负责人保持为当前学生，不重置
           setProjectType('');
           setProjectDescription('');
           setCollaborators([]);
@@ -1242,25 +1244,14 @@ const ProjectIntroPage: React.FC = () => {
                 </div>
                 <div>
                   <label htmlFor="project-leader" className="block text-sm font-medium text-text-secondary mb-2">项目负责人</label>
-                  <select 
+                  <input 
+                    type="text" 
                     id="project-leader"
-                    value={projectLeaderId}
-                    onChange={(e) => {
-                      console.log('🔄 选择负责人:', e.target.value);
-                      const selectedUser = studentUsers.find(u => u.id === e.target.value);
-                      console.log('🔍 找到的用户:', selectedUser);
-                      setProjectLeaderId(e.target.value);
-                      setProjectLeader(selectedUser?.full_name || selectedUser?.username || '');
-                    }}
-                    className={`w-full px-4 py-3 border border-border-light rounded-lg ${styles.searchInputFocus} ${styles.customSelect}`}
-                  >
-                    <option value="">请选择项目负责人</option>
-                    {studentUsers.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.full_name || user.username} ({user.email})
-                      </option>
-                    ))}
-                  </select>
+                    value={projectLeader || (user?.full_name || user?.username || '当前学生')}
+                    readOnly
+                    className="w-full px-4 py-3 border border-border-light rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    placeholder="项目负责人"
+                  />
                 </div>
                 <div>
                   <label htmlFor="project-type" className="block text-sm font-medium text-text-secondary mb-2">项目类型</label>
