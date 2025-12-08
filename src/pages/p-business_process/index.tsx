@@ -13,6 +13,10 @@ const BusinessProcessPage: React.FC = () => {
   const { user } = useAuth();
   const [userName, setUserName] = useState<string>('用户');
   const [globalSearchValue, setGlobalSearchValue] = useState('');
+
+  const handleUserAvatarClick = () => {
+    navigate('/personal-center');
+  };
   const [achievementSearchValue, setAchievementSearchValue] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   const [showAiSolutionModal, setShowAiSolutionModal] = useState(false);
@@ -303,7 +307,7 @@ const BusinessProcessPage: React.FC = () => {
           
           {/* 右侧用户区域 */}
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2">
+            <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2" onClick={handleUserAvatarClick}>
               <img 
                 src="https://s.coze.cn/image/ZGfcCg_zbjk/" 
                 alt="用户头像" 
