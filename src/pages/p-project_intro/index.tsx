@@ -128,6 +128,7 @@ const ProjectIntroPage: React.FC = () => {
   const [projectLeaderId, setProjectLeaderId] = useState(''); // 项目负责人ID
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingAchievementId, setEditingAchievementId] = useState<string>('');
+  const [originalAchievement, setOriginalAchievement] = useState<any>(null); // 保存原始成果信息
   
 
   
@@ -224,6 +225,9 @@ const ProjectIntroPage: React.FC = () => {
       if (result.success && result.data) {
         const achievement = result.data;
         console.log('加载到的成果数据:', achievement);
+        
+        // 保存原始成果信息
+        setOriginalAchievement(achievement);
         
         // 设置基本信息
         setProjectName(achievement.title || '');
@@ -1006,13 +1010,39 @@ const ProjectIntroPage: React.FC = () => {
         throw new Error('未找到对应的项目类型');
       }
 
+      // 在编辑模式下，决定是否保留原有的封面图和视频
+      let finalCoverUrl = coverUrl;
+      let finalVideoUrl = videoUrl;
+      
+      if (isEditMode && originalAchievement) {
+        // 检查用户是否重新选择了封面图（编辑模式下原有封面图的ID是'edit-cover'）
+        const hasNewCoverPhoto = photos.some(photo => photo.id !== 'edit-cover');
+        const hasOldCover = photos.some(photo => photo.id === 'edit-cover');
+        
+        // 如果用户没有重新选择封面图，且保留了原有的封面图，则使用原有的URL
+        if (!hasNewCoverPhoto && hasOldCover && originalAchievement.cover_url) {
+          finalCoverUrl = originalAchievement.cover_url;
+          console.log('✅ 保留原有封面图:', finalCoverUrl);
+        }
+        
+        // 检查用户是否重新选择了视频（编辑模式下原有视频的ID是'edit-video'）
+        const hasNewVideo = videos.some(video => video.id !== 'edit-video');
+        const hasOldVideo = videos.some(video => video.id === 'edit-video');
+        
+        // 如果用户没有重新选择视频，且保留了原有的视频，则使用原有的URL
+        if (!hasNewVideo && hasOldVideo && originalAchievement.video_url) {
+          finalVideoUrl = originalAchievement.video_url;
+          console.log('✅ 保留原有视频:', finalVideoUrl);
+        }
+      }
+
       // 创建成果数据 - 使用正确的数据库字段结构
       const achievementData = {
         title: projectName,
         description: finalDescription,
         type_id: selectedType.id,
-        cover_url: coverUrl,
-        video_url: videoUrl,
+        cover_url: finalCoverUrl,
+        video_url: finalVideoUrl,
         publisher_id: projectLeaderId || user.id, // 使用选中的项目负责人ID
         instructor_id: selectedInstructorId || user.id, // 使用选中的指导老师，如果没有选中则使用学生自己
         parents_id: selectedCollaboratorId || null, // 添加协作者ID
