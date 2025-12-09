@@ -6,14 +6,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApproval } from '../../contexts/ApprovalContext';
 import styles from './styles.module.css';
 
-type FilterType = 'all' | 'approved' | 'draft';
+
 
 const AchievementManagement: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { pendingCount } = useApproval();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -62,11 +62,10 @@ const AchievementManagement: React.FC = () => {
     }
   };
 
-  // 筛选和搜索逻辑
+  // 搜索逻辑
   const filteredAchievements = achievements.filter(achievement => {
-    const matchesStatus = activeFilter === 'all' || achievement.status === activeFilter;
     const matchesSearch = achievement.title.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
+    return matchesSearch;
   });
 
   // 移动端菜单切换
@@ -74,10 +73,7 @@ const AchievementManagement: React.FC = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // 状态筛选处理
-  const handleFilterChange = (filter: FilterType) => {
-    setActiveFilter(filter);
-  };
+
 
   // 搜索处理
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,43 +264,6 @@ const AchievementManagement: React.FC = () => {
                     />
                   </div>
                 </div>
-                
-                {/* 状态筛选 */}
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-text-secondary">状态筛选:</span>
-                  <div className="flex space-x-1">
-                    <button
-                      onClick={() => handleFilterChange('all')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                        activeFilter === 'all' 
-                          ? 'bg-secondary text-white' 
-                          : 'text-text-secondary hover:bg-bg-gray'
-                      }`}
-                    >
-                      全部
-                    </button>
-                    <button
-                      onClick={() => handleFilterChange('approved')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                        activeFilter === 'approved' 
-                          ? 'bg-secondary text-white' 
-                          : 'text-text-secondary hover:bg-bg-gray'
-                      }`}
-                    >
-                      已发布
-                    </button>
-                    <button
-                      onClick={() => handleFilterChange('draft')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                        activeFilter === 'draft' 
-                          ? 'bg-secondary text-white' 
-                          : 'text-text-secondary hover:bg-bg-gray'
-                      }`}
-                    >
-                      草稿
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
             
@@ -349,11 +308,6 @@ const AchievementManagement: React.FC = () => {
                               )}
                               <div>
                                 <h4 className="font-medium text-text-primary line-clamp-1">{achievement.title}</h4>
-                                {achievement.description && (
-                                  <p className="text-sm text-text-muted line-clamp-1">
-                                    {achievement.description.replace(/<[^>]*>/g, '')}
-                                  </p>
-                                )}
                               </div>
                             </div>
                           </td>
