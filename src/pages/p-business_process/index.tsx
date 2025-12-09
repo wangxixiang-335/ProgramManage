@@ -87,20 +87,42 @@ const BusinessProcessPage: React.FC = () => {
   // 加载被拒绝成果的审批记录
   const loadApprovalRecords = async (rejectedAchievements: Achievement[]) => {
     try {
+      const achievementIds = rejectedAchievements.map(a => a.id);
       const records: Record<string, { feedback: string; reviewed_at: string }> = {};
       
-      for (const achievement of rejectedAchievements) {
-        const result = await AchievementService.getLatestApprovalRecord(achievement.id);
-        if (result.success && result.data) {
-          records[achievement.id] = {
-            feedback: result.data.feedback,
-            reviewed_at: result.data.reviewed_at
-          };
+      // 批量查询所有审批记录
+      const { data: approvalRecords, error } = await supabase
+        .from('approval_records')
+        .select(`
+          achievement_id,
+          feedback,
+          reviewed_at,
+          reviewer:users!approval_records_reviewer_id_fkey (username)
+        `)
+        .in('achievement_id', achievementIds)
+        .order('reviewed_at', { ascending: false });
+
+      if (error) {
+        console.error('批量查询审批记录失败:', error);
+        return;
+      }
+
+      // 处理审批记录，只保留每个成果的最新记录
+      if (approvalRecords) {
+        for (const record of approvalRecords) {
+          const achievementId = record.achievement_id;
+          // 如果还没有记录，或者当前记录比已有记录更新，则更新
+          if (!records[achievementId] || new Date(record.reviewed_at) > new Date(records[achievementId].reviewed_at)) {
+            records[achievementId] = {
+              feedback: record.feedback,
+              reviewed_at: record.reviewed_at
+            };
+          }
         }
       }
       
       setApprovalRecords(records);
-      console.log('📋 审批记录加载成功:', Object.keys(records).length, '条');
+      console.log('📋 审批记录批量加载成功:', Object.keys(records).length, '条');
     } catch (error) {
       console.error('加载审批记录失败:', error);
     }

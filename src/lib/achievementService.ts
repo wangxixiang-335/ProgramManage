@@ -136,17 +136,17 @@ export class AchievementService {
         // 教师 (role=2) - 获取所有学生的成果
         console.log('📊 获取所有学生成果');
         
-        // 先获取所有学生ID
-        const { data: students, error: studentsError } = await supabase
+        // 优化：使用 RPC 或者预先获取学生ID（但只获取一次）
+        const { data: students } = await supabase
           .from('users')
           .select('id')
           .eq('role', 1);
         
-        if (studentsError) {
-          throw new Error(studentsError.message);
-        }
-        
         const studentIds = students?.map(s => s.id) || [];
+        
+        if (studentIds.length === 0) {
+          return { success: true, data: [] };
+        }
         
         query = supabase
           .from('achievements')
@@ -156,7 +156,8 @@ export class AchievementService {
             users!achievements_publisher_id_fkey (username, email, full_name),
             instructor:users!achievements_instructor_id_fkey (username, email, full_name)
           `)
-          .in('publisher_id', studentIds);
+          .in('publisher_id', studentIds)
+          .order('created_at', { ascending: false });
       } else {
         // 管理员或其他角色 - 获取所有成果
         console.log('📊 获取所有成果');
@@ -167,10 +168,11 @@ export class AchievementService {
             achievement_types!achievements_type_id_fkey (name),
             users!achievements_publisher_id_fkey (username, email),
             instructor:users!achievements_instructor_id_fkey (username, email)
-          `);
+          `)
+          .order('created_at', { ascending: false });
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query;
 
       if (error) {
         const errorMessage = typeof error === 'object' && error !== null && 'message' in error 
@@ -201,29 +203,17 @@ export class AchievementService {
       
       let query;
 
-      if (userRole === 2) {
-        // 教师 (role=2) - 获取自己发布的成果（publisher_id 等于教师ID）
-        console.log('📊 获取教师自己发布的成果');
-        query = supabase
-          .from('achievements')
-          .select(`
-            *,
-            achievement_types!achievements_type_id_fkey (name),
-            users!achievements_publisher_id_fkey (username, email)
-          `)
-          .eq('publisher_id', userId);
-      } else {
-        // 学生 (role=1) - 获取自己的成果
-        console.log('📊 获取学生自己的成果');
-        query = supabase
-          .from('achievements')
-          .select(`
-            *,
-            achievement_types!achievements_type_id_fkey (name),
-            users!achievements_publisher_id_fkey (username, email)
-          `)
-          .eq('publisher_id', userId);
-      }
+      // 统一处理：获取指定用户的成果
+      console.log(`📊 获取用户${userRole === 2 ? '教师' : '学生'}自己发布的成果`);
+      query = supabase
+        .from('achievements')
+        .select(`
+          *,
+          achievement_types!achievements_type_id_fkey (name),
+          users!achievements_publisher_id_fkey (username, email, full_name)
+        `)
+        .eq('publisher_id', userId)
+        .order('created_at', { ascending: false });
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
