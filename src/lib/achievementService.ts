@@ -19,6 +19,58 @@ import {
 } from '../types/achievement';
 
 export class AchievementService {
+  
+  /**
+   * 清理富文本内容，只保留img标签、br换行标签和文本内容
+   * @param htmlContent 原始HTML内容
+   * @returns 只包含img标签和br标签的清理后内容
+   */
+  static cleanDescriptionForStorage(htmlContent: string): string {
+    if (!htmlContent) return '';
+    
+    try {
+      // 创建临时DOM来解析HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      
+      // 获取所有子节点
+      const childNodes = Array.from(tempDiv.childNodes);
+      
+      let cleanContent = '';
+      
+      childNodes.forEach(node => {
+        // 处理元素节点
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as Element;
+          
+          if (element.tagName.toLowerCase() === 'img') {
+            // 保留img标签
+            const src = element.getAttribute('src');
+            if (src) {
+              cleanContent += `<img src="${src}">`;
+            }
+          } else if (element.tagName.toLowerCase() === 'br') {
+            // 保留br换行标签
+            cleanContent += '<br>';
+          }
+        } 
+        // 处理文本节点
+        else if (node.nodeType === Node.TEXT_NODE) {
+          // 保留文本内容
+          cleanContent += node.textContent;
+        }
+      });
+      
+      console.log('📝 原始内容:', htmlContent);
+      console.log('🧹 清理后内容:', cleanContent);
+      console.log('📊 保留的标签: img, br + 文本');
+      
+      return cleanContent;
+    } catch (error) {
+      console.error('清理HTML内容时发生错误:', error);
+      return htmlContent; // 如果清理失败，返回原始内容
+    }
+  }
   // 转换状态数字为字符串（用于从数据库读取数据时）
   private static convertStatusFromNumber(statusNumber: AchievementStatusCode): AchievementStatus {
     return NUMBER_TO_STATUS[statusNumber] || 'pending';
