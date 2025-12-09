@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AchievementService } from '../../lib/achievementService';
-import { Achievement, User } from '../../types/achievement';
+import { Achievement, User, AchievementType } from '../../types/achievement';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApproval } from '../../contexts/ApprovalContext';
 import styles from './styles.module.css';
@@ -16,6 +16,7 @@ const AchievementManagement: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,8 +25,9 @@ const AchievementManagement: React.FC = () => {
     const originalTitle = document.title;
     document.title = '软院项目通 - 成果管理';
     
-    // 加载当前用户的成果
+    // 加载当前用户的成果和类型数据
     loadUserAchievements();
+    loadAchievementTypes();
     
     return () => { document.title = originalTitle; };
   }, []);
@@ -78,6 +80,41 @@ const AchievementManagement: React.FC = () => {
   // 搜索处理
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+  };
+
+  // 获取类型样式
+  const getTypeStyle = (typeName: string) => {
+    switch (typeName) {
+      case '网站开发':
+        return 'px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full';
+      case '数据分析':
+        return 'px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full';
+      case '游戏开发':
+        return 'px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full';
+      case '移动应用':
+        return 'px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full';
+      case '办公应用':
+        return 'px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full';
+      case '创意作品':
+        return 'px-2 py-1 text-xs bg-pink-100 text-pink-800 rounded-full';
+      case '人工智能':
+        return 'px-2 py-1 text-xs bg-indigo-100 text-indigo-800 rounded-full';
+      case '其他':
+      default:
+        return 'px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full';
+    }
+  };
+
+  // 加载成果类型
+  const loadAchievementTypes = async () => {
+    try {
+      const result = await AchievementService.getAchievementTypes();
+      if (result.success && result.data) {
+        setAchievementTypes(result.data);
+      }
+    } catch (error) {
+      console.error('加载成果类型失败:', error);
+    }
   };
 
   // 编辑成果
@@ -312,9 +349,15 @@ const AchievementManagement: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-4 px-6">
-                            <span className="text-sm text-text-secondary">
-                              {(achievement as any).achievement_types?.name || '未分类'}
-                            </span>
+                            {(() => {
+                              const type = achievementTypes.find(t => t.id === achievement.type_id);
+                              const typeName = type?.name || '其他';
+                              return (
+                                <span className={getTypeStyle(typeName)}>
+                                  {typeName}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="py-4 px-6">
                             <span className="text-sm text-text-secondary">

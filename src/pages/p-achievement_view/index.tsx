@@ -72,6 +72,29 @@ const AchievementViewPage: React.FC = () => {
     await loadAllStudentAchievements();
   };
 
+  // 获取类型样式
+  const getTypeStyle = (typeName: string) => {
+    switch (typeName) {
+      case '网站开发':
+        return 'px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full';
+      case '数据分析':
+        return 'px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full';
+      case '游戏开发':
+        return 'px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full';
+      case '移动应用':
+        return 'px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full';
+      case '办公应用':
+        return 'px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full';
+      case '创意作品':
+        return 'px-2 py-1 text-xs bg-pink-100 text-pink-800 rounded-full';
+      case '人工智能':
+        return 'px-2 py-1 text-xs bg-indigo-100 text-indigo-800 rounded-full';
+      case '其他':
+      default:
+        return 'px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full';
+    }
+  };
+
   // 加载所有学生的成果数据
   const loadAllStudentAchievements = async () => {
     try {
@@ -474,9 +497,15 @@ const AchievementViewPage: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-4 px-4 w-2/12">
-                            <span className="text-sm text-text-secondary truncate block">
-                              {(achievement as any).achievement_types?.name || '未分类'}
-                            </span>
+                            {(() => {
+                              const type = achievementTypes.find(t => t.id === achievement.type_id);
+                              const typeName = type?.name || '其他';
+                              return (
+                                <span className={getTypeStyle(typeName)}>
+                                  {typeName}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="py-4 px-4 w-2/12">
                             <span className="text-sm text-text-secondary truncate block">
@@ -595,9 +624,15 @@ const AchievementViewPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm text-text-muted mb-1">成果类型</p>
-                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                        {currentAchievement.type?.name || '其他'}
-                      </span>
+                      {(() => {
+                        const type = achievementTypes.find(t => t.id === currentAchievement.type_id);
+                        const typeName = type?.name || '其他';
+                        return (
+                          <span className={getTypeStyle(typeName)}>
+                            {typeName}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div>
                       <p className="text-sm text-text-muted mb-1">发布学生</p>

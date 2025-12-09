@@ -712,19 +712,20 @@ const AchievementApprovalPage: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-sm text-text-primary">
-                            <span className={getTypeStyle((achievement as any).type?.name || '其他')}>
-                              {(achievement as any).type?.name || '其他'}
-                            </span>
+                            {(() => {
+                              const type = achievementTypes.find(t => t.id === achievement.type_id);
+                              const typeName = type?.name || '其他';
+                              return (
+                                <span className={getTypeStyle(typeName)}>
+                                  {typeName}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="py-3 px-4 text-sm text-text-primary">
-                            <div className="flex items-center">
-                              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center mr-2">
-                                <i className="fas fa-user text-white text-xs"></i>
-                              </div>
-                              <div>
-                                <div>{achievement.publisher?.full_name || achievement.publisher?.username}</div>
-                                <div className="text-xs text-text-muted">{achievement.publisher?.email}</div>
-                              </div>
+                            <div>
+                              <div>{achievement.publisher?.full_name || achievement.publisher?.username}</div>
+                              <div className="text-xs text-text-muted">{achievement.publisher?.email}</div>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-sm text-text-primary">
@@ -856,9 +857,15 @@ const AchievementApprovalPage: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-sm text-text-muted mb-1">成果类型</p>
-                        <span className={getTypeStyle((currentAchievement as any).type?.name || '其他')}>
-                          {(currentAchievement as any).type?.name || '其他'}
-                        </span>
+                        {(() => {
+                          const type = achievementTypes.find(t => t.id === currentAchievement.type_id);
+                          const typeName = type?.name || '其他';
+                          return (
+                            <span className={getTypeStyle(typeName)}>
+                              {typeName}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div>
                         <p className="text-sm text-text-muted mb-1">发布学生</p>
