@@ -49,7 +49,7 @@ interface Notification {
 
 const PersonalCenter: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { pendingCount, refreshPendingCount } = useApproval();
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -293,6 +293,34 @@ const PersonalCenter: React.FC = () => {
     if (!userProfile) return;
     
     try {
+      // 简单的邮箱格式验证
+      const emailRegex = /^[^ -\s@]+@[^ -\s@]+\.[^ -\s@]+$/;
+      if (!emailRegex.test(userInfo.email)) {
+        showErrorMessage('请输入有效的邮箱地址');
+        return;
+      }
+
+      // 检查邮箱是否发生变化
+      if (userInfo.email !== originalUserInfo.email) {
+        // 邮箱有变化，检查是否已被其他用户使用
+        const { data: existingEmail, error: checkError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', userInfo.email)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 表示没有找到记录
+          console.error('邮箱检查失败:', checkError);
+          showErrorMessage('邮箱验证失败，请重试');
+          return;
+        }
+
+        if (existingEmail && existingEmail.id !== userProfile.id) {
+          showErrorMessage('该邮箱已被其他用户使用');
+          return;
+        }
+      }
+
       // 查找对应的班级ID
       let classId = null;
       console.log('保存用户信息，当前班级名称:', userInfo.className);
@@ -321,6 +349,19 @@ const PersonalCenter: React.FC = () => {
         showErrorMessage('个人信息更新失败');
         return;
       }
+
+      // 更新本地状态和localStorage中的用户信息
+      const updatedUser = {
+        ...user,
+        email: userInfo.email,
+        full_name: userInfo.name
+      };
+      
+      // 更新AuthContext中的用户信息
+      updateUser(updatedUser);
+      
+      // 更新localStorage中的用户信息
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
 
       setIsEditMode(false);
       setOriginalUserInfo(userInfo);
