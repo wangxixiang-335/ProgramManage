@@ -35,6 +35,69 @@ interface Video {
   duration: number;
 }
 
+// 自动消失的成功提示
+const showSuccessToast = (message: string) => {
+  // 创建toast元素
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #10B981;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 9999;
+    font-size: 14px;
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out;
+  `;
+
+  // 添加动画样式
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 添加到页面
+  document.body.appendChild(toast);
+
+  // 2秒后自动消失
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-in forwards';
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    }, 300);
+  }, 2000);
+};
+
 const ProjectIntroPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -942,7 +1005,8 @@ const ProjectIntroPage: React.FC = () => {
           }
         }
         
-        alert(isEditMode ? '项目更新成功！' : '项目发布成功！');
+        // 显示自动消失的成功提示
+        showSuccessToast(isEditMode ? '项目更新成功！' : '项目发布成功！');
         
         if (!isEditMode) {
           // 只在非编辑模式下重置表单
@@ -1709,6 +1773,19 @@ FOR UPDATE WITH CHECK (bucket_id = 'achievement-images');`;
           )}
         </div>
       </main>
+      
+      {/* 全屏加载遮罩 - 仅在发布时显示 */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center">
+            <i className="fas fa-spinner fa-spin text-4xl text-secondary mb-4"></i>
+            <p className="text-lg font-medium text-text-primary">
+              {isEditMode ? '正在更新项目...' : '正在发布项目...'}
+            </p>
+            <p className="text-sm text-text-muted mt-2">请耐心等待，不要关闭页面</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

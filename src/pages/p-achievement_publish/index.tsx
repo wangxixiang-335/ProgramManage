@@ -89,6 +89,69 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
   );
 };
 
+// 自动消失的成功提示
+const showSuccessToast = (message: string) => {
+  // 创建toast元素
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #10B981;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 9999;
+    font-size: 14px;
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out;
+  `;
+
+  // 添加动画样式
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 添加到页面
+  document.body.appendChild(toast);
+
+  // 2秒后自动消失
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-in forwards';
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    }, 300);
+  }, 2000);
+};
+
 const AchievementPublishPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -107,6 +170,7 @@ const AchievementPublishPage: React.FC = () => {
   
   // 数据状态
   const [isLoading, setIsLoading] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [achievementTypes, setAchievementTypes] = useState<AchievementType[]>(ACHIEVEMENT_TYPES);
   const [instructors, setInstructors] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
@@ -380,7 +444,7 @@ const AchievementPublishPage: React.FC = () => {
       return;
     }
     
-    setIsLoading(true);
+    setIsPublishing(true);
     
     try {
       // 处理封面图上传
@@ -468,12 +532,17 @@ const AchievementPublishPage: React.FC = () => {
       console.error('Save draft error:', error);
       alert('草稿保存失败，请稍后重试');
     } finally {
-      setIsLoading(false);
+      setIsPublishing(false);
     }
   };
   
   // 发布成果
   const handlePublish = () => {
+    // 防止重复点击
+    if (isPublishing) {
+      return;
+    }
+    
     // 检查必填项
     if (!formData.title) {
       alert('请输入成果标题');
@@ -511,7 +580,7 @@ const AchievementPublishPage: React.FC = () => {
     }
     
     setShowSelectApproverModal(false);
-    setIsLoading(true);
+    setIsPublishing(true);
     
     try {
       // 处理封面图上传
@@ -606,8 +675,11 @@ const AchievementPublishPage: React.FC = () => {
       }
       
       if (result.success) {
-        alert('成果发布成功！');
-        navigate('/achievement-management'); // 跳转到成果管理页面
+        // 创建自动消失的成功提示
+        showSuccessToast('成果发布成功！');
+        setTimeout(() => {
+          navigate('/achievement-management'); // 跳转到成果管理页面
+        }, 2000);
       } else {
         alert(result.message || '成果发布失败');
       }
@@ -616,7 +688,7 @@ const AchievementPublishPage: React.FC = () => {
       console.error('Publish achievement error:', error);
       alert('成果发布失败，请稍后重试');
     } finally {
-      setIsLoading(false);
+      setIsPublishing(false);
     }
   };
   
@@ -1120,9 +1192,17 @@ const AchievementPublishPage: React.FC = () => {
                   </button>
                   <button 
                     onClick={handlePublish}
-                    className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-all"
+                    disabled={isPublishing}
+                    className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-accent transition-all disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
                   >
-                    发布
+                    {isPublishing ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin mr-2"></i>
+                        发布中...
+                      </>
+                    ) : (
+                      '发布'
+                    )}
                   </button>
                 </div>
               </div>
@@ -1317,6 +1397,17 @@ const AchievementPublishPage: React.FC = () => {
         onSelect={handleStudentSelect}
         onClose={() => setShowStudentModal(false)}
       />
+      
+      {/* 全屏加载遮罩 - 仅在发布时显示 */}
+      {isPublishing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center">
+            <i className="fas fa-spinner fa-spin text-4xl text-secondary mb-4"></i>
+            <p className="text-lg font-medium text-text-primary">正在发布成果...</p>
+            <p className="text-sm text-text-muted mt-2">请耐心等待，不要关闭页面</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
